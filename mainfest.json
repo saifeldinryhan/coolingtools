@@ -1,0 +1,23 @@
+{
+  "name": "HVAC Toolkit",
+  "short_name": "HVAC Tools",
+  "description": "أدوات مهندس التبريد والتكييف والكهرباء",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1e1e2f",
+  "background_color": "#f8f9fa",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
