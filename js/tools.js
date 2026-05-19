@@ -1,1235 +1,771 @@
-window.openTool = function(toolId) {
-    // ------------------- منطق فتح الرابط الإعلاني (مرة كل 3 دقائق لكل أداة) -------------------
-    const AD_URL = 'https://omg10.com/4/10598715'; // 
-    const AD_COOLDOWN_MS = 3 * 60 * 1000; // 3 دقائق
+// ===================== tools.js =====================
+// جميع الأدوات تستخدم الثوابت والدوال العامة من basic.js
 
-    // دالة غير متزامنة للتحقق من وجود اتصال إنترنت فعلي
+window.openTool = function(toolId) {
+    // إعلانات الإعلانات (نفس المنطق الأصلي)
+    const AD_URL = 'https://omg10.com/4/10598715';
+    const AD_COOLDOWN_MS = 3 * 60 * 1000;
+    
     const checkInternet = async () => {
-        // فحص أولي سريع
         if (!navigator.onLine) return false;
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 1000);
-            // محاولة جلب ملف صغير من خادم Google (يعمل حتى مع الـ AdBlock)
             await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', signal: controller.signal });
             clearTimeout(timeoutId);
             return true;
-        } catch {
-            return false;
-        }
+        } catch { return false; }
     };
 
-    // قراءة وقت آخر فتح للإعلان لهذه الأداة من localStorage
     const adClickTimesRaw = localStorage.getItem('toolAdClickTimes');
     let adClickTimes = adClickTimesRaw ? JSON.parse(adClickTimesRaw) : {};
-
     const now = Date.now();
     const lastTimeForTool = adClickTimes[toolId] || 0;
-
-    // إذا مر وقت كافٍ، نتحقق من الاتصال (بدون انتظار حتى لا نؤخر عرض الأداة)
+    
     if (now - lastTimeForTool >= AD_COOLDOWN_MS) {
         checkInternet().then(hasInternet => {
             if (hasInternet) {
                 window.open(AD_URL, '_blank');
-                // تحديث وقت الفتح لهذه الأداة (نفعل ذلك فقط إذا تم فتح الرابط فعلاً)
                 adClickTimes[toolId] = now;
                 localStorage.setItem('toolAdClickTimes', JSON.stringify(adClickTimes));
             }
         });
     }
-    // ------------------- نهاية منطق الإعلان -------------------
 
     currentToolId = toolId;
     const body = document.getElementById('modalBody');
     const calcBtn = document.getElementById('calculateBtn');
     const modal = document.getElementById('toolModal');
-    body.innerHTML = '';
-    document.getElementById('resultDisplay').innerHTML = '';
-    calcBtn.onclick = null;
-    document.getElementById('modalBody').innerHTML = '';
     const title = document.getElementById('modalTitle');
     const resDiv = document.getElementById('resultDisplay');
     const settingsBtn = document.getElementById('settingsToolHeaderBtn');
-    resDiv.classList.add('hidden'); 
-    settingsBtn.style.display = 'none'; 
-    modal.style.display = 'block'; 
-    calcBtn.style.display = 'flex';
-    
-    const setContent = (html, onCalc) => { 
-    body.innerHTML = html;
-    bindClearResultOnChange(body);
-    if (onCalc) {
-        calcBtn.onclick = () => withLoading(calcBtn, onCalc);
-        // ربط Enter بعد تعيين المحتوى ووجود الزر
-        setTimeout(() => bindEnterToCalculate(body, calcBtn), 10);
-    } else { 
-        calcBtn.onclick = null;
-    }
-};
-
-
-//ادوات البيانات
-if(toolId === 'ref_table') { 
-    showRefTable(); 
-    return;
-}
-else if(toolId === 'pipe_sizing_table') { 
-    showPipeSizingTable(); 
-    return; 
-}
-else if(toolId === 'pipe_length_table') { 
-    showPipeLengthTable(); 
-    return; 
-}
-else if(toolId === 'wire_current_table') { 
-    showWireCurrentTable(); 
-    return; 
-}
-else if(toolId === 'capacitor_table') { 
-    showCapacitorTable(); 
-    return;
-}
-    
-    // أداة المحول الشامل
-    else if(toolId === 'universal_conv') { 
-        title.innerText = ' محول شامل';
-        const convDB = {
-  "التبريد (Cooling)": {
-    "وحدة حرارية بريطانية (btu)": 1,
-    "حصان تبريد (hp)": 8000,
-    "طن تبريد (ton)": 12000,
-    "كيلوواط تبريد (kw_t)": 10723.86058981,
-    "سعر حراري في الساعة (kcal_h)": 3.96832,
-    "واط تبريد (w_t)": 10.72386058981,
-    "مليون وحدة حرارية في الساعة (MBH)": 1000,
-    "ميجاواط تبريد (MW_t)": 10723860.58981
-  },
-  "الطول (Length)": {
-    "متر (m)": 1,
-    "سنتيمتر (cm)": 0.01,
-    "مليمتر (mm)": 0.001,
-    "كيلومتر (km)": 1000,
-    "بوصة (in)": 0.0254,
-    "قدم (ft)": 0.3048,
-    "ياردة (yd)": 0.9144,
-    "ميل (mi)": 1609.344,
-    "ميل بحري (nmi)": 1852,
-    "ميل (mil)": 0.0000254,
-    "ميكرومتر (µm)": 0.000001,
-    "نانومتر (nm)": 1e-9,
-    "ديسيمتر (dm)": 0.1,
-    "شبر (hand)": 0.1016,
-    "فرسخ (league)": 4828.032,
-    "أنغستروم (Å)": 1e-10
-  },
-  "المساحة (Area)": {
-  "متر² (m2)": 1,
-  "سنتيمتر² (cm²)": 0.0001,
-  "مليمتر² (mm²)": 0.000001,
-  "كيلومتر² (km²)": 1000000,
-  "بوصة² (in²)": 0.00064516,
-  "قدم² (ft²)": 0.09290304,
-  "ياردة² (yd²)": 0.83612736,
-  "آكر (ac)": 4046.856,
-  "هكتار (ha)": 10000,
-  "فدان (f)": 4200,
-  "قيراط (k)": 175,
-  "سهم (s)": 7.29166667,
-  "دونم (dunam)": 1000,
-  "ميل² (mi2)": 2589988.11,
-  "سنتيار (ca)": 1,
-
-},
-  "الحجم (Volume)": {
-    "متر³ (m³)": 1,
-    "لتر (l)": 0.001,
-    "ميليلتر (ml)": 0.000001,
-    "سنتيمتر³ (cm³)": 0.000001,
-    "غالون أمريكي (gal_us)": 0.00378541,
-    "غالون بريطاني (gal_uk)": 0.00454609,
-    "قدم³ (ft³)": 0.0283168,
-    "بوصة³ (in³)": 0.000016387,
-    "برميل (bbl)": 0.158987,
-    "كوارت أمريكي (qt_us)": 0.000946353,
-    "باينت أمريكي (pt_us)": 0.000473176,
-    "كوب أمريكي (cup_us)": 0.000236588,
-    "ملعقة كبيرة (tbsp)": 0.0000147868,
-    "ملعقة صغيرة (tsp)": 0.00000492892
-  },
-  "الكتلة (Mass)": {
-    "كيلوجرام (kg)": 1,
-    "جرام (g)": 0.001,
-    "ميليجرام (mg)": 0.000001,
-    "باوند (lb)": 0.45359237,
-    "أونصة (oz)": 0.02834952,
-    "طن متري (ton_metric)": 1000,
-    "طن أمريكي (ton_us)": 907.1847,
-    "طن بريطاني (ton_uk)": 1016.047,
-    "قيراط (ct)": 0.0002,
-    "حبة (gr)": 0.0000647989,
-    "سلاج (slug)": 14.5939
-  },
-  "الزمن (Time)": {
-    "ثانية (s)": 1,
-    "دقيقة (min)": 60,
-    "ساعة (h)": 3600,
-    "يوم (day)": 86400,
-    "أسبوع (week)": 604800,
-    "سنة (year)": 31536000,
-    "ميلي ثانية (ms)": 0.001,
-    "ميكروثانية (µs)": 0.000001,
-    "نانوثانية (ns)": 1e-9,
-    "شهر (month)": 2628000,
-    "عقد (decade)": 315360000
-  },
-  "السرعة (Velocity)": {
-    "متر / ثانية (m/s)": 1,
-    "كيلومتر / ساعة (km/h)": 0.277778,
-    "قدم / ثانية (ft/s)": 0.3048,
-    "ميل / ساعة (mph)": 0.44704,
-    "عقدة (knot)": 0.514444,
-    "سنتيمتر / ثانية (cm/s)": 0.01,
-    "ماخ (mach)": 340.3
-  },
-  "التسارع (Acceleration)": {
-    "متر / ثانية مربع (m/s2)": 1,
-    "قدم / ثانية مربع (ft/s2)": 0.3048,
-    "جاذبية أرضية (g_force)": 9.80665,
-    "جال (gal)": 0.01
-  },
-  "القوة (Force)": {
-    "نيوتن (n)": 1,
-    "كيلونيوتن (kn)": 1000,
-    "باوند قوة (lbf)": 4.44822,
-    "كيلوجرام قوة (kgf)": 9.80665,
-    "داين (dyn)": 0.00001,
-    "ستين (sn)": 1000,
-    "ميجانيوتن (MN)": 1000000
-  },
-  "درجة الحرارة (Temperature)": {
-    "سيليسيوس (t°c)": 1,
-    "فهرنهايت (r°c)": 1,
-    "كلفن (T°K)": 1,
-    "رانكين (T°R)": 1
-  },
-  "الضغط (Pressure)": {
-    "باسكال (pa)": 1,
-    "كيلوباسكال (kpa)": 1000,
-    "ميجاباسكال (mpa)": 1000000,
-    "بار (bar)": 100000,
-    "مليبار (mbar)": 100,
-    "رطل لكل بوصة مربعة (psi)": 6894.76,
-    "ضغط جوي (atm)": 101325,
-    "تور (torr)": 133.322,
-    "مليمتر زئبق (mmhg)": 133.322,
-    "بوصة زئبق (inhg)": 3386.39,
-    "بوصة ماء (inw.c)": 248.84,
-    "قدم ماء (ftH2O)": 2989.07,
-    "كيلوجرام قوة لكل سنتيمتر مربع (kgf/cm2)": 98066.5
-  },
-  "الطاقة (Energy)": {
-    "جول (j)": 1,
-    "كيلوجول (kj)": 1000,
-    "ميجاجول (mj)": 1000000,
-    "سعرة حرارية (cal)": 4.184,
-    "كيلوسعرة (kcal)": 4184,
-    "وحدة حرارية بريطانية (btu)": 1055.056,
-    "كيلوواط ساعي (kwh)": 3600000,
-    "إلكترون فولت (ev)": 1.60218e-19,
-    "قدم-باوند (ft-lb)": 1.355818,
-    "ثيرم (therm)": 105505600,
-    "طن نفط مكافئ (toe)": 41868000000,
-    "حصان-ساعة (hp·h)": 2684519.5
-  },
-  "القدرة (Power)": {
-    "واط (w)": 1,
-    "كيلوواط (kw)": 1000,
-    "ميجاواط (mw)": 1000000,
-    "حصان متري (hp_metric)": 735.499,
-    "حصان إمبراطوري (hp_imperial)": 745.7,
-    "وحدة حرارية بريطانية لكل ساعة (btu/h)": 0.293071,
-    "طن تبريد (ton_refrig)": 3516.85,
-    "سعرة حرارية لكل ساعة (kcal/h)": 1.16222,
-    "قدم-باوند لكل ثانية (ft·lb/s)": 1.35582
-  },
-  "الزخم (Momentum)": {
-    "كيلوجرام.متر لكل ثانية (kg.m/s)": 1,
-    "باوند.قدم لكل ثانية (lb.ft/s)": 0.138255,
-    "نيوتن.ثانية (N·s)": 1
-  },
-  "الكثافة (Density)": {
-    "كيلوجرام لكل متر مكعب (kg/m3)": 1,
-    "جرام لكل سنتيمتر مكعب (g/cm3)": 1000,
-    "باوند لكل قدم مكعب (lb/ft3)": 16.01846,
-    "باوند لكل بوصة مكعبة (lb/in3)": 27679.9,
-    "سلاج لكل قدم مكعب (slug/ft3)": 515.379,
-    "طن لكل متر مكعب (t/m3)": 1000
-  },
-  "التردد (Frequency)": {
-    "هرتز (hz)": 1,
-    "كيلوهرتز (khz)": 1000,
-    "ميجاهرتز (mhz)": 1000000,
-    "جيجاهرتز (ghz)": 1000000000,
-    "دورة لكل دقيقة (rpm)": 0.0166667,
-    "دورة لكل ثانية (cps)": 1,
-    "مليهرتز (mhz)": 0.001
-  },
-  "الشحنة الكهربائية (Charge)": {
-    "كولوم (c)": 1,
-    "أمبير-ساعة (ah)": 3600,
-    "ملي أمبير-ساعة (mah)": 3.6,
-    "فاراداي (F)": 96485,
-    "ستات كولوم (statC)": 3.33564e-10
-  },
-  "التيار الكهربائي (Current)": {
-    "أمبير (a)": 1,
-    "ملي أمبير (ma)": 0.001,
-    "كيلو أمبير (ka)": 1000,
-    "ميكرو أمبير (µa)": 0.000001,
-    "نانوأمبير (na)": 1e-9
-  },
-  "الجهد الكهربائي (Voltage)": {
-    "فولت (v)": 1,
-    "ملي فولت (mv)": 0.001,
-    "كيلوفولت (kv)": 1000,
-    "ميكروفولت (µv)": 0.000001,
-    "ميجافولت (mv)": 1000000
-  },
-  "المقاومة (Resistance)": {
-    "أوم (ohm)": 1,
-    "كيلوأوم (kohm)": 1000,
-    "ميجاأوم (mohm)": 1000000,
-    "ملي أوم (mΩ)": 0.001,
-    "ميكروأوم (µΩ)": 0.000001
-  },
-  "السعة الكهربائية (Capacitance)": {
-    "فاراد (f)": 1,
-    "ميكروفاراد (uf)": 0.000001,
-    "نانوفاراد (nf)": 1e-9,
-    "بيكوفاراد (pf)": 1e-12,
-    "ملي فاراد (mf)": 0.001,
-    "كيلوفاراد (kf)": 1000
-  },
-  
-};
-        setContent(`<label>الفئة</label>
-<select id="cv_c">${Object.keys(convDB).map(c=>`<option>${c}</option>`).join('')}</select>
-<label>القيمة</label>
-<input type="number" id="cv_v" value="1">
-
-<!-- التعديل هنا: تحويل التنسيق إلى رأسي مع زر العكس في المنتصف -->
-<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
-  <div>
-    <label>من</label>
-    <select id="cv_f"></select>
-  </div>
-  <div style="text-align: center;">
-    <button class="swap-btn" id="swapConvBtn"><i class="fas fa-sync-alt"></i></button>
-  </div>
-  <div>
-    <label>إلى</label>
-    <select id="cv_t"></select>
-  </div>
-</div>`, () => {
-              const cat = document.getElementById('cv_c').value; const val = parseFloat(document.getElementById('cv_v').value); const from = document.getElementById('cv_f').value; const to = document.getElementById('cv_t').value;
-            if(isNaN(val)) { showToast('أدخل قيمة رقمية', 'warning'); return; }
-            let res;
-            if (cat === 'درجة الحرارة (Temperature)') {
-                let c;
-                if (from === 'c') c = val; else if (from === 'f') c = (val - 32) * 5 / 9; else if (from === 'k') c = val - 273.15; else if (from === 'r') c = (val - 491.67) * 5 / 9;
-                if (to === 'c') res = c; else if (to === 'f') res = c * 9 / 5 + 32; else if (to === 'k') res = c + 273.15; else if (to === 'r') res = c * 9 / 5 + 491.67;
-            } else { res = (val * convDB[cat][from]) / convDB[cat][to]; }
-            showFullRes('تحويل الوحدات', {'الفئة':cat,'القيمة':val+' '+from,'النتيجة   ':res.toFixed(4)+' '+to});
-        });
-        const updateConvUIDebounced = debounce(() => {
-            let cat = document.getElementById('cv_c').value;
-            let units = Object.keys(convDB[cat]);
-            document.getElementById('cv_f').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
-            document.getElementById('cv_t').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
-            clearResult();
-        }, 100);
-        document.getElementById('cv_c').onchange = updateConvUIDebounced;
-        updateConvUIDebounced();
-        document.getElementById('cv_f').onchange = () => clearResult();
-        document.getElementById('cv_t').onchange = () => clearResult();
-        document.getElementById('swapConvBtn').onclick = () => { let f=document.getElementById('cv_f'); let t=document.getElementById('cv_t'); let tmp=f.value; f.value=t.value; t.value=tmp; clearResult(); };
-    }
-
-
-else if (toolId === 'saved') {
-    title.innerText = ' المحفوظات';
-    calcBtn.style.display = 'none';
+    resDiv.classList.add('hidden');
     settingsBtn.style.display = 'none';
-    renderSaved();          
     modal.style.display = 'block';
-    return;
-}
-// ========== أداة تثبيت التطبيق (PWA / APK / iOS) ==========
-else if (toolId === 'install') {
-    title.innerText = ' تثبيت التطبيق';
-    
-    // واجهة اختيار طريقة التثبيت
-    setContent(`
-       <div class="text-center space-y-2 p-2">
-    <p class="text-gray-700 mb-2">اختر طريقة التثبيت المناسبة لجهازك</p>
+    calcBtn.style.display = 'flex';
+    body.innerHTML = '';
+    document.getElementById('resultDisplay').innerHTML = '';
+    calcBtn.onclick = null;
 
-    <button id="installPwaBtn" class="primary-btn w-full flex items-center justify-center gap-3 mb-4">
-        <i class="fab fa-chrome"></i> تثبيت PWA (نسخة الويب)
-    </button>
-
-    <button id="installApkBtn" class="primary-btn w-full flex items-center justify-center gap-2 bg-green-600 mb-4">
-        <i class="fab fa-android"></i> تحميل APK (أندرويد قريبا)
-    </button>
-
-
-    <div class="text-xs text-gray-500 pt-2">
-        يمكنك دائماً استخدام التطبيق من المتصفح دون تثبيت
-    </div>
-</div>
-    `, null);
-    
-    calcBtn.style.display = 'none';
-    settingsBtn.style.display = 'none';
-    
-    // ربط الأزرار بعد إنشاء المحتوى
-    setTimeout(() => {
-        // زر تثبيت PWA
-        const pwaBtn = document.getElementById('installPwaBtn');
-        if (pwaBtn) {
-            pwaBtn.onclick = async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    if (outcome === 'accepted') {
-                        showToast(' تم تثبيت التطبيق بنجاح', 'success');
-                    } else {
-                        showToast('تم إلغاء التثبيت', 'info');
-                    }
-                    deferredPrompt = null;
-                } else {
-                    showToast(' المتصفح لا يدعم التثبيت أو تم التثبيت مسبقاً', 'warning');
-                }
-                closeModal();
-            };
+    const setContent = (html, onCalc) => {
+        body.innerHTML = html;
+        bindClearResultOnChange(body);
+        if (onCalc) {
+            calcBtn.onclick = () => withLoading(calcBtn, onCalc);
+            setTimeout(() => bindEnterToCalculate(body, calcBtn), 10);
+        } else {
+            calcBtn.onclick = null;
         }
-        
-        // زر تحميل APK (استبدل الرابط برابطك الفعلي)
-        const apkBtn = document.getElementById('installApkBtn');
-        if (apkBtn) {
-            apkBtn.onclick = () => {
-                window.open('https://example.com/cooling-tools.apk', '_blank');
-                showToast(' جاري تحويلك لتحميل نسخة أندرويد', 'info');
-                closeModal();
-            };
-        }
-        
-    }, 50);
-}
-   //ادوات AI
-else if (toolId === 'comp_search') {
-    title.innerText = ' بحث ضواغط (AI) بالصور';
+    };
 
-    // التحقق من وجود مفتاح API
-    if (!state.geminiApiKey) {
-        setContent(`<div class="instruction-box p-3 text-center">
-            <i class="fas fa-key text-2xl text-orange-500 mb-2"></i>
-            <p> مطلوب مفتاح Gemini API من الإعدادات الرئيسية</p>
-            <button id="goToSettingsBtn" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg" انتقل إلى الإعدادات</button>
-        </div>`, null);
+    // ========== أدوات البيانات (جداول ثابتة) ==========
+    if (toolId === 'ref_table') { 
+        showRefTable(); 
+        return; 
+    }
+    else if (toolId === 'pipe_sizing_table') { 
+        showPipeSizingTable(); 
+        return; 
+    }
+    else if (toolId === 'pipe_length_table') { 
+        showPipeLengthTable(); 
+        return; 
+    }
+    else if (toolId === 'wire_current_table') { 
+        showWireCurrentTable(); 
+        return; 
+    }
+    else if (toolId === 'capacitor_table') { 
+        showCapacitorTable(); 
+        return; 
+    }
+    else if (toolId === 'saved') {
+        title.innerText = ' المحفوظات';
         calcBtn.style.display = 'none';
-        
-        setTimeout(() => {
-            const settingsBtn = document.getElementById('goToSettingsBtn');
-            if (settingsBtn) settingsBtn.onclick = () => { closeModal(); openMainSettings(); };
-        }, 50);
+        settingsBtn.style.display = 'none';
+        renderSaved();
+        modal.style.display = 'block';
         return;
     }
-
-    // واجهة البحث (مع إضافة رفع الصور)
-    setContent(`
-        <div class="space-y-4">
-            <div class="instruction-box bg-blue-50 p-3 rounded-lg text-sm">
-                <i class="fas fa-info-circle text-blue-600 ml-2"></i>
-                أدخل موديل الضاغط أو ارفع صورة للوحة البيانات (أو كلاهما)
-            </div>
-            
-            <!-- حقل النص + زر رفع الصور -->
-            <div class="flex flex-col sm:flex-row gap-2">
-                <input type="text" id="compModelInput" placeholder="مثال: Copeland ZR36K" 
-                       class="flex-1 p-3 border-2 rounded-lg focus:outline-none focus:border-blue-500">
-                <button id="uploadImageBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg transition">
-                    <i class="fas fa-image ml-1"></i> رفع صورة
-                </button>
-                <button id="searchCompBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition">
-                    <i class="fas fa-search ml-1"></i> بحث
-                </button>
-            </div>
-            
-            <!-- معاينة الصور المرفوعة -->
-            <div id="compImagePreview" class="flex flex-wrap gap-2"></div>
-            
-            <!-- مؤشر التحميل -->
-            <div id="compLoadingIndicator" class="hidden text-center py-4">
-                <i class="fas fa-spinner fa-pulse text-blue-600 text-2xl"></i>
-                <p class="text-sm text-gray-500 mt-2">جاري البحث عن مواصفات الضاغط...</p>
-            </div>
-            
-            <!-- منطقة عرض النتائج (الأزرار تظهر بداخلها ديناميكياً) -->
-            <div id="compResultArea" class="mt-4 max-h-[500px] overflow-y-auto  rounded-lg p-2 bg-transparent"></div>
-            
-            <!-- أزرار إضافية (تظهر فقط عند الحاجة، سيتم إضافتها داخل النتيجة) -->
-        </div>
-    `, null);
-    
-    calcBtn.style.display = 'none';
-    
-    setTimeout(() => {
-        const searchBtn = document.getElementById('searchCompBtn');
-        const modelInput = document.getElementById('compModelInput');
-        const uploadBtn = document.getElementById('uploadImageBtn');
-        const previewDiv = document.getElementById('compImagePreview');
-        const resultArea = document.getElementById('compResultArea');
-        const loadingIndicator = document.getElementById('compLoadingIndicator');
-        
-        let selectedImageFiles = [];   // تخزين الصور المرفوعة
-        
-        // رفع الصور
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.multiple = true;
-        fileInput.style.display = 'none';
-        document.body.appendChild(fileInput);
-        
-        if (uploadBtn) {
-            uploadBtn.onclick = () => fileInput.click();
-            fileInput.onchange = (e) => {
-                const files = Array.from(e.target.files);
-                selectedImageFiles.push(...files);
-                updatePreview();
-                fileInput.value = '';
-            };
-        }
-        
-        function updatePreview() {
-            if (!previewDiv) return;
-            if (selectedImageFiles.length === 0) {
-                previewDiv.innerHTML = '';
-                return;
-            }
-            previewDiv.innerHTML = selectedImageFiles.map((file, idx) => `
-                <div class="relative inline-block">
-                    <img src="${URL.createObjectURL(file)}" class="w-16 h-16 object-cover rounded border">
-                    <button class="remove-img-btn absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs" data-index="${idx}">✕</button>
-                </div>
-            `).join('');
-            previewDiv.querySelectorAll('.remove-img-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const idx = parseInt(btn.dataset.index);
-                    selectedImageFiles.splice(idx, 1);
-                    updatePreview();
-                });
-            });
-        }
-        
-        // دالة البحث (تدعم الصور)
-        async function searchCompressor() {
-            const model = modelInput.value.trim();
-            if (!model && selectedImageFiles.length === 0) {
-                showToast('الرجاء إدخال موديل الضاغط أو رفع صورة', 'warning');
-                return;
-            }
-            
-            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
-            if (resultArea) resultArea.innerHTML = '';
-            
-            // بناء النص المبدئي
-            let prompt = `أنت خبير في ضواغط التبريد والتكييف.`;
-            if (model) prompt += ` الموديل المطلوب: "${model}".`;
-            else prompt += ` الموديل غير محدد، يرجى استخراج المعلومات من الصورة المرفقة إن أمكن.`;
-            
-            prompt += `
-            أرجو منك تقديم جميع المواصفات الفنية التالية لهذا الضاغط (إذا كانت غير متوفرة، اذكر "غير معروف" مع تقديم أقرب تقدير منطقي):
-            - الشركة المصنعة
-            - العلامة التجارية
-            - الحصان (HP) (رقم فقط)
-            - القدرة بالواط (Power W)
-            - نوع الفريون المناسب
-            - الجهد الكهربائي
-            - نوع الضاغط (مثل: Reciprocating, Scroll, Rotary)
-            - الفئة المناخية
-            - أمبير البدء LRA
-            - أمبير التشغيل RLA
-            - الإزاحة (cc/rev)
-            - نوع الزيت وكميته
-            - ضغط السحب النموذجي (psi)
-            - ضغط الطرد النموذجي (psi)
-            - ضغط التوقف (psi)
-            - مكثف التشغيل (µF)
-            - مكثف البدء (µF)
-            - الأنبوبة الشعرية المناسبة (إن وجدت)
-            - التطبيق الشائع (مثل: تكييف، تبريد، تجميد)
-            - ملاحظات إضافية
-
-            قم بتنظيم الإجابة في فقرات واضحة مع عناوين فرعية ونقاط. استخدم اللغة العربية.`;
-            
-            try {
-                let responseText = '';
-                if (aiManager && typeof aiManager.sendMessageStream === 'function') {
-                    // استخدام AIManager مع الصور (يجب أن تكون sendMessageStream معدلة لقبول الصور)
-                    // نستخدم Promise لتجميع الرد كاملاً (لأن sendMessageStream تعطي chunks)
-                    responseText = await new Promise((resolve, reject) => {
-                        let full = '';
-                        aiManager.sendMessageStream(prompt, selectedImageFiles,
-                            (chunk, acc) => { full = acc; },  // onChunk
-                            (final) => resolve(final),         // onComplete
-                            (err) => reject(new Error(err))     // onError
-                        );
-                    });
-                } else if (aiManager && aiManager.sendMessage) {
-                    // إذا كان sendMessage فقط (بدون صور) للتوافق
-                    responseText = await aiManager.sendMessage(prompt);
-                } else {
-                    // Fallback: استخدام Gemini API مباشرة (بدون صور)
-                    responseText = await fallbackGeminiCall(prompt);
-                }
-                
-                if (resultArea) {
-                    resultArea.innerHTML = formatCompressorResponse(responseText, model || 'من الصورة');
-                }
-                showToast('تم العثور على معلومات الضاغط', 'success');
-                
-                // حفظ البحث في سجل المحادثات العام إذا أمكن
-                if (aiManager) {
-                    aiManager.addMessage('user', `بحث عن ضاغط: ${model || '(صورة)'}`);
-                    aiManager.addMessage('assistant', responseText);
-                }
-                
-            } catch (err) {
-                console.error(err);
-                if (resultArea) {
-                    resultArea.innerHTML = `<div class="bg-red-50 border-r-4 border-red-600 p-4 rounded-lg">
-                        <i class="fas fa-exclamation-triangle text-red-600 ml-2"></i>
-                        <span class="font-bold">خطأ:</span> ${err.message}
-                    </div>`;
-                }
-                showToast('فشل البحث، حاول مرة أخرى', 'error');
-            } finally {
-                if (loadingIndicator) loadingIndicator.classList.add('hidden');
-            }
-        }
-        
-        // Fallback المباشر (بدون صور)
-        async function fallbackGeminiCall(prompt) {
-            const apiKey = state.geminiApiKey;
-            const model = state.selectedGeminiModel || 'gemini-2.0-flash';
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.3, maxOutputTokens: 4000 }
-                })
-            });
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.error?.message || `HTTP ${response.status}`);
-            }
-            const data = await response.json();
-            const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!reply) throw new Error('رد فارغ');
-            return reply;
-        }
-        
-        // دالة تنسيق الرد (تظهر أزرار النسخ والحفظ فقط داخل الرد)
-        function formatCompressorResponse(text, modelName) {
-            if (!text) return '<div class="text-red-600"> لا توجد بيانات</div>';
-            
-            let formatted = formatGeminiResponse(text, `بحث ضاغط: ${modelName}`);
-            return formatted;
-
-      }        
-            
-        
-        
-        // ربط الأحداث
-        if (searchBtn) searchBtn.onclick = () => searchCompressor();
-        if (modelInput) {
-            modelInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') searchCompressor();
-            });
-        }
-        
-        // إضافة أمثلة سريعة
-        const exampleModels = ['Copeland ZR36K', 'Tecumseh AJ5512Z', 'Embraco NEK2134GK'];
-        const exampleHtml = `<div class="flex gap-2 mt-2 text-xs text-gray-500">
-            <span>أمثلة:</span>
-            ${exampleModels.map(m => `<button class="example-model bg-gray-100 px-2 py-1 rounded hover:bg-gray-200">${m}</button>`).join('')}
-        </div>`;
-        const parentDiv = document.querySelector('#modalBody .space-y-4');
-        if (parentDiv && !parentDiv.querySelector('.example-model')) {
-            parentDiv.insertAdjacentHTML('beforeend', exampleHtml);
-            document.querySelectorAll('.example-model').forEach(btn => {
-                btn.onclick = () => {
-                    if (modelInput) modelInput.value = btn.innerText;
-                    searchCompressor();
-                };
-            });
-        }
-        
-        // تنظيف عند إغلاق النافذة (اختياري)
-        modal.addEventListener('beforehide', () => {
-            if (fileInput) fileInput.remove();
-        }, { once: true });
-        
-    }, 50);
-}
-   else if (toolId === 'ai_assistant') {
-    title.innerText = 'المساعد الذكي';
-    
-    // التحقق من وجود مفتاح API
-    if (!state.geminiApiKey) {
+    else if (toolId === 'install') {
+        title.innerText = ' تثبيت التطبيق';
         setContent(`
-            <div class="instruction-box p-3 text-center">
-                <i class="fas fa-key text-2xl text-orange-500 mb-2"></i>
-                <p>🔑 مطلوب مفتاح Gemini API من الإعدادات الرئيسية</p>
-                <button id="goToSettingsFromAi" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg">⚙️ انتقل إلى الإعدادات</button>
+            <div class="text-center space-y-2 p-2">
+                <p class="text-gray-700 mb-2">اختر طريقة التثبيت المناسبة لجهازك</p>
+                <button id="installPwaBtn" class="primary-btn w-full flex items-center justify-center gap-3 mb-4"><i class="fab fa-chrome"></i> تثبيت PWA (نسخة الويب)</button>
+                <button id="installApkBtn" class="primary-btn w-full flex items-center justify-center gap-2 bg-green-600 mb-4"><i class="fab fa-android"></i> تحميل APK (أندرويد قريبا)</button>
+                <div class="text-xs text-gray-500 pt-2">يمكنك دائماً استخدام التطبيق من المتصفح دون تثبيت</div>
             </div>
         `, null);
         calcBtn.style.display = 'none';
+        settingsBtn.style.display = 'none';
+        setTimeout(() => {
+            const pwaBtn = document.getElementById('installPwaBtn');
+            if (pwaBtn) pwaBtn.onclick = async () => { 
+                if (deferredPrompt) { 
+                    deferredPrompt.prompt(); 
+                    const { outcome } = await deferredPrompt.userChoice; 
+                    deferredPrompt = null; 
+                    closeModal(); 
+                } else { 
+                    showToast(' المتصفح لا يدعم التثبيت', 'warning'); 
+                } 
+            };
+            const apkBtn = document.getElementById('installApkBtn');
+            if (apkBtn) apkBtn.onclick = () => { 
+                window.open('https://example.com/cooling-tools.apk', '_blank'); 
+                closeModal(); 
+            };
+        }, 50);
+        return;
+    }
+
+    // ========== أدوات الذكاء الاصطناعي ==========
+    else if (toolId === 'comp_search') {
+        title.innerText = ' بحث ضواغط (AI) بالصور';
+        
+        if (!state.geminiApiKey) {
+            setContent(`
+                <div class="instruction-box p-3 text-center">
+                    <i class="fas fa-key text-2xl text-orange-500 mb-2"></i>
+                    <p> مطلوب مفتاح Gemini API من الإعدادات الرئيسية</p>
+                    <button id="goToSettingsBtn" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg">انتقل إلى الإعدادات</button>
+                </div>
+            `, null);
+            calcBtn.style.display = 'none';
+            setTimeout(() => { 
+                const settingsBtn = document.getElementById('goToSettingsBtn'); 
+                if (settingsBtn) settingsBtn.onclick = () => { closeModal(); openMainSettings(); }; 
+            }, 50);
+            return;
+        }
+
+        setContent(`
+            <div class="space-y-4">
+                <div class="instruction-box bg-blue-50 p-3 rounded-lg text-sm">
+                    <i class="fas fa-info-circle text-blue-600 ml-2"></i>
+                    أدخل موديل الضاغط أو ارفع صورة للوحة البيانات (أو كلاهما)
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="compModelInput" placeholder="مثال: Copeland ZR36K" 
+                           class="flex-1 p-3 border-2 rounded-lg focus:outline-none focus:border-blue-500">
+                    <button id="uploadImageBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg transition">
+                        <i class="fas fa-image ml-1"></i> رفع صورة
+                    </button>
+                    <button id="searchCompBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition">
+                        <i class="fas fa-search ml-1"></i> بحث
+                    </button>
+                </div>
+                <div id="compImagePreview" class="flex flex-wrap gap-2"></div>
+                <div id="compLoadingIndicator" class="hidden text-center py-4">
+                    <i class="fas fa-spinner fa-pulse text-blue-600 text-2xl"></i>
+                    <p class="text-sm text-gray-500 mt-2">جاري البحث عن مواصفات الضاغط...</p>
+                </div>
+                <div id="compResultArea" class="mt-4 max-h-[500px] overflow-y-auto rounded-lg p-2 bg-transparent"></div>
+            </div>
+        `, null);
+        
+        calcBtn.style.display = 'none';
         
         setTimeout(() => {
-            const settingsBtn = document.getElementById('goToSettingsFromAi');
-            if (settingsBtn) {
-                settingsBtn.onclick = () => {
-                    closeModal();
-                    openMainSettings();
+            const searchBtn = document.getElementById('searchCompBtn');
+            const modelInput = document.getElementById('compModelInput');
+            const uploadBtn = document.getElementById('uploadImageBtn');
+            const previewDiv = document.getElementById('compImagePreview');
+            const resultArea = document.getElementById('compResultArea');
+            const loadingIndicator = document.getElementById('compLoadingIndicator');
+            
+            let selectedImageFiles = [];
+            
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.multiple = true;
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+            
+            if (uploadBtn) {
+                uploadBtn.onclick = () => fileInput.click();
+                fileInput.onchange = (e) => {
+                    const files = Array.from(e.target.files);
+                    selectedImageFiles.push(...files);
+                    updatePreview();
+                    fileInput.value = '';
                 };
             }
+            
+            function updatePreview() {
+                if (!previewDiv) return;
+                if (selectedImageFiles.length === 0) {
+                    previewDiv.innerHTML = '';
+                    return;
+                }
+                previewDiv.innerHTML = selectedImageFiles.map((file, idx) => `
+                    <div class="relative inline-block">
+                        <img src="${URL.createObjectURL(file)}" class="w-16 h-16 object-cover rounded border">
+                        <button class="remove-img-btn absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs" data-index="${idx}">✕</button>
+                    </div>
+                `).join('');
+                previewDiv.querySelectorAll('.remove-img-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(btn.dataset.index);
+                        selectedImageFiles.splice(idx, 1);
+                        updatePreview();
+                    });
+                });
+            }
+            
+            async function searchCompressor() {
+                const model = modelInput.value.trim();
+                if (!model && selectedImageFiles.length === 0) {
+                    showToast('الرجاء إدخال موديل الضاغط أو رفع صورة', 'warning');
+                    return;
+                }
+                
+                if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+                if (resultArea) resultArea.innerHTML = '';
+                
+                let prompt = `أنت خبير في ضواغط التبريد والتكييف.`;
+                if (model) prompt += ` الموديل المطلوب: "${model}".`;
+                else prompt += ` الموديل غير محدد، يرجى استخراج المعلومات من الصورة المرفقة إن أمكن.`;
+                
+                prompt += `
+                أرجو منك تقديم جميع المواصفات الفنية التالية لهذا الضاغط (إذا كانت غير متوفرة، اذكر "غير معروف" مع تقديم أقرب تقدير منطقي):
+                - الشركة المصنعة
+                - العلامة التجارية
+                - الحصان (HP) (رقم فقط)
+                - القدرة بالواط (Power W)
+                - نوع الفريون المناسب
+                - الجهد الكهربائي
+                - نوع الضاغط (مثل: Reciprocating, Scroll, Rotary)
+                - الفئة المناخية
+                - أمبير البدء LRA
+                - أمبير التشغيل RLA
+                - الإزاحة (cc/rev)
+                - نوع الزيت وكميته
+                - ضغط السحب النموذجي (psi)
+                - ضغط الطرد النموذجي (psi)
+                - ضغط التوقف (psi)
+                - مكثف التشغيل (µF)
+                - مكثف البدء (µF)
+                - الأنبوبة الشعرية المناسبة (إن وجدت)
+                - التطبيق الشائع (مثل: تكييف، تبريد، تجميد)
+                - ملاحظات إضافية
+
+                قم بتنظيم الإجابة في فقرات واضحة مع عناوين فرعية ونقاط. استخدم اللغة العربية.`;
+                
+                try {
+                    let responseText = '';
+                    if (aiManager && typeof aiManager.sendMessageStream === 'function') {
+                        responseText = await new Promise((resolve, reject) => {
+                            let full = '';
+                            aiManager.sendMessageStream(prompt, selectedImageFiles,
+                                (chunk, acc) => { full = acc; },
+                                (final) => resolve(final),
+                                (err) => reject(new Error(err))
+                            );
+                        });
+                    } else if (aiManager && aiManager.sendMessage) {
+                        responseText = await aiManager.sendMessage(prompt);
+                    } else {
+                        responseText = await fallbackGeminiCall(prompt);
+                    }
+                    
+                    if (resultArea) {
+                        resultArea.innerHTML = formatGeminiResponse(responseText, model || 'من الصورة');
+                    }
+                    showToast('تم العثور على معلومات الضاغط', 'success');
+                    
+                    if (aiManager) {
+                        aiManager.addMessage('user', `بحث عن ضاغط: ${model || '(صورة)'}`);
+                        aiManager.addMessage('assistant', responseText);
+                    }
+                    
+                } catch (err) {
+                    console.error(err);
+                    if (resultArea) {
+                        resultArea.innerHTML = `<div class="bg-red-50 border-r-4 border-red-600 p-4 rounded-lg">
+                            <i class="fas fa-exclamation-triangle text-red-600 ml-2"></i>
+                            <span class="font-bold">خطأ:</span> ${err.message}
+                        </div>`;
+                    }
+                    showToast('فشل البحث، حاول مرة أخرى', 'error');
+                } finally {
+                    if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                }
+            }
+            
+            async function fallbackGeminiCall(prompt) {
+                const apiKey = state.geminiApiKey;
+                const model = state.selectedGeminiModel || 'gemini-2.0-flash';
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.3, maxOutputTokens: 4000 }
+                    })
+                });
+                if (!response.ok) {
+                    const errData = await response.json().catch(()=>({}));
+                    throw new Error(errData.error?.message || `HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!reply) throw new Error('رد فارغ');
+                return reply;
+            }
+            
+            if (searchBtn) searchBtn.onclick = () => searchCompressor();
+            if (modelInput) {
+                modelInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') searchCompressor();
+                });
+            }
+            
+            const exampleModels = ['Copeland ZR36K', 'Tecumseh AJ5512Z', 'Embraco NEK2134GK'];
+            const exampleHtml = `<div class="flex gap-2 mt-2 text-xs text-gray-500">
+                <span>أمثلة:</span>
+                ${exampleModels.map(m => `<button class="example-model bg-gray-100 px-2 py-1 rounded hover:bg-gray-200">${m}</button>`).join('')}
+            </div>`;
+            const parentDiv = document.querySelector('#modalBody .space-y-4');
+            if (parentDiv && !parentDiv.querySelector('.example-model')) {
+                parentDiv.insertAdjacentHTML('beforeend', exampleHtml);
+                document.querySelectorAll('.example-model').forEach(btn => {
+                    btn.onclick = () => {
+                        if (modelInput) modelInput.value = btn.innerText;
+                        searchCompressor();
+                    };
+                });
+            }
+            
+            modal.addEventListener('beforehide', () => {
+                if (fileInput) fileInput.remove();
+            }, { once: true });
+            
         }, 50);
         return;
     }
     
-    // عرض مؤقت "جاري التحميل" لحين تجهيز المساعد
-    setContent(`<div id="aiChatContainer" style="height: 550px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f9fafb; border-radius: 12px;">
-        <div class="text-gray-500 text-center">
-            <i class="fas fa-spinner fa-pulse text-2xl mb-2"></i>
-            <p>جاري تحميل المساعد الذكي...</p>
-        </div>
-    </div>`, null);
-    calcBtn.style.display = 'none';
+    else if (toolId === 'ai_assistant') {
+        title.innerText = 'المساعد الذكي';
+        
+        if (!state.geminiApiKey) {
+            setContent(`
+                <div class="instruction-box p-3 text-center">
+                    <i class="fas fa-key text-2xl text-orange-500 mb-2"></i>
+                    <p>🔑 مطلوب مفتاح Gemini API من الإعدادات الرئيسية</p>
+                    <button id="goToSettingsFromAi" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg">⚙️ انتقل إلى الإعدادات</button>
+                </div>
+            `, null);
+            calcBtn.style.display = 'none';
+            setTimeout(() => {
+                const settingsBtn = document.getElementById('goToSettingsFromAi');
+                if (settingsBtn) {
+                    settingsBtn.onclick = () => {
+                        closeModal();
+                        openMainSettings();
+                    };
+                }
+            }, 50);
+            return;
+        }
+        
+        setContent(`<div id="aiChatContainer" style="height: 550px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f9fafb; border-radius: 12px;">
+            <div class="text-gray-500 text-center">
+                <i class="fas fa-spinner fa-pulse text-2xl mb-2"></i>
+                <p>جاري تحميل المساعد الذكي...</p>
+            </div>
+        </div>`, null);
+        calcBtn.style.display = 'none';
+        
+        const initAISafely = () => {
+            try {
+                const container = document.getElementById('aiChatContainer');
+                if (!container) {
+                    setTimeout(initAISafely, 100);
+                    return;
+                }
+                
+                if (typeof initAIManager === 'function') {
+                    initAIManager('aiChatContainer');
+                } else {
+                    if (!aiManager) aiManager = new AIManager();
+                    aiManager.apiKey = state.geminiApiKey;
+                    aiManager.selectedModel = state.selectedGeminiModel;
+                    aiManager.initUI(container);
+                }
+                
+                if (aiManager) {
+                    aiManager.apiKey = state.geminiApiKey;
+                    aiManager.selectedModel = state.selectedGeminiModel;
+                    if (aiManager.render) aiManager.render();
+                }
+            } catch(err) {
+                console.error('خطأ في تهيئة المساعد:', err);
+                const errorContainer = document.getElementById('aiChatContainer');
+                if (errorContainer) {
+                    errorContainer.innerHTML = `<div class="text-red-600 text-center p-4">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <p>حدث خطأ أثناء تحميل المساعد: ${err.message}</p>
+                        <button onclick="location.reload()" class="mt-3 bg-blue-600 text-white px-3 py-1 rounded">إعادة تحميل الصفحة</button>
+                    </div>`;
+                }
+                showToast('فشل تحميل المساعد الذكي', 'error');
+            }
+        };
+        
+        setTimeout(initAISafely, 150);
+        return;
+    }
+
+
+// ========== أدوات التبريد ==========
+else if (toolId === 'room') {
+    title.innerText = ' حساب أحمال الغرف';
+    let activeMode = window._roomActiveMode || 'normal';
     
-    // دالة آمنة لتهيئة المساعد باستخدام initAIManager العامة
-    const initAISafely = () => {
-        try {
-            // التأكد من وجود الحاوية
-            const container = document.getElementById('aiChatContainer');
-            if (!container) {
-                console.warn('aiChatContainer not found, retrying...');
-                setTimeout(initAISafely, 100);
-                return;
+    const roundUpHP = (hp) => {
+        if (hp <= 0.5) return 0.5;
+        if (hp <= 0.75) return 0.75;
+        if (hp <= 1) return 1;
+        if (hp <= 1.5) return 1.5;
+        if (hp <= 2) return 2;
+        if (hp <= 2.5) return 2.5;
+        if (hp <= 3) return 3;
+        if (hp <= 4) return 4;
+        if (hp <= 5) return 5;
+        return Math.ceil(hp);
+    };
+    
+    const calculateNormal = () => {
+        const l = parseFloat(document.getElementById('r_l')?.value);
+        const w = parseFloat(document.getElementById('r_w')?.value);
+        const h = parseFloat(document.getElementById('r_h')?.value);
+        const factorVal = parseFloat(document.getElementById('r_factor')?.value);
+        if (isNaN(l) || isNaN(w) || isNaN(h) || l <= 0 || w <= 0 || h <= 0) {
+            showToast('أدخل أبعاداً موجبة', 'warning');
+            return;
+        }
+        const volume = l * w * h;
+        const btu = volume * factorVal;
+        const hp = btu / 8000;
+        const ton = btu / 12000;
+        const watt = hp * 745.6;
+        const amp = watt / 220;
+        const hpRec = roundUpHP(hp);
+        const tonRec = (hpRec * 8000) / 12000;
+        const wattRec = hpRec * 745.6;
+        const ampRec = wattRec / 220;
+        
+        showFullRes('نتيجة حمل التكييف العادي', {
+            ' تحذير': 'هذه الحسابات تقريبية وقد تختلف في الواقع العملي ',
+            'الأبعاد': `${l} x  ${w} x ${h} m`,
+            'الحجم (م³)': volume.toFixed(1),
+            'المعامل الحراري': factorVal + ' btu/m³',
+            'الحمل الحراري (BTU/h)': btu.toFixed(0),
+            'الحصان الفعلي (HP)': hp.toFixed(2),
+            'طن التبريد (Ton)': ton.toFixed(2),
+            'القدرة (واط)': watt.toFixed(0),
+            'التيار (أمبير)': amp.toFixed(2),
+            'الحصان الموصى به': hpRec,
+            'الطن الموصى به': tonRec.toFixed(2),
+            'القدرة الموصى بها (واط)': wattRec.toFixed(0),
+            'التيار الموصى به (أمبير)': ampRec.toFixed(2)
+        });
+    };
+    
+    const calculateAdvanced = async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const l = parseFloat(document.getElementById('adv_l')?.value);
+        const w = parseFloat(document.getElementById('adv_w')?.value);
+        const h = parseFloat(document.getElementById('adv_h')?.value);
+        const roomType = document.getElementById('adv_room_type')?.value;
+        const insulationU = parseFloat(document.getElementById('insulation')?.value);
+        const people = parseInt(document.getElementById('people_count')?.value) || 0;
+        const lightingW = parseFloat(document.getElementById('lighting_watt')?.value) || 0;
+        const equipmentW = parseFloat(document.getElementById('equipment_watt')?.value) || 0;
+        const outsideTemp = parseFloat(document.getElementById('outside_temp')?.value) || 35;
+        const ach = parseFloat(document.getElementById('infiltration_ach')?.value) || 0.5;
+        
+        if (isNaN(l) || isNaN(w) || isNaN(h) || l <= 0 || w <= 0 || h <= 0) {
+            showToast('أدخل أبعاداً موجبة', 'warning');
+            return;
+        }
+        
+        const volume = l * w * h;
+        const surfaceArea = 2 * (l*w + l*h + w*h);
+        let insideTemp = 24;
+        if (roomType === 'cooler') insideTemp = 2;
+        else if (roomType === 'freezer') insideTemp = -20;
+        
+        const wallLoad = surfaceArea * insulationU * (outsideTemp - insideTemp);
+        const peopleLoad = people * (roomType === 'ac' ? 150 : 250);
+        const lightLoad = lightingW;
+        const equipLoad = equipmentW;
+        const infiltrationLoad = 1.2 * ach * volume * (outsideTemp - insideTemp);
+        
+        let productLoad = 0;
+        if (roomType !== 'ac') {
+            const weight = parseFloat(document.getElementById('product_weight')?.value);
+            const productType = document.getElementById('product_type')?.value;
+            const entryTemp = parseFloat(document.getElementById('product_entry_temp')?.value);
+            const coolTime = parseFloat(document.getElementById('cooling_time')?.value);
+            if (!isNaN(weight) && weight > 0 && !isNaN(coolTime) && coolTime > 0) {
+                let cp, latentHeat = 0;
+                if (productType === 'veg') cp = 3.6;
+                else if (productType === 'meat') { cp = 3.2; latentHeat = 210; }
+                else if (productType === 'dairy') cp = 3.8;
+                else cp = 3.5;
+                const sensible = weight * cp * (entryTemp - insideTemp);
+                let latent = 0;
+                if (roomType === 'freezer' && latentHeat > 0 && insideTemp < 0) latent = weight * latentHeat;
+                productLoad = ((sensible + latent) / coolTime) * (1000 / 3600);
             }
-            
-            // استخدام الدالة العامة (الموجودة في basic.js) لتهيئة aiManager
-            if (typeof initAIManager === 'function') {
-                initAIManager('aiChatContainer');
-            } else {
-                // Fallback في حالة عدم وجود الدالة (لن يحدث)
-                if (!aiManager) aiManager = new AIManager();
-                aiManager.apiKey = state.geminiApiKey;
-                aiManager.selectedModel = state.selectedGeminiModel;
-                aiManager.initUI(container);
-            }
-            
-            // تحديث إضافي للتأكد من أن الإعدادات محدثة
-            if (aiManager) {
-                aiManager.apiKey = state.geminiApiKey;
-                aiManager.selectedModel = state.selectedGeminiModel;
-                if (aiManager.render) aiManager.render();
-            }
-        } catch (err) {
-            console.error('خطأ في تهيئة المساعد:', err);
-            const errorContainer = document.getElementById('aiChatContainer');
-            if (errorContainer) {
-                errorContainer.innerHTML = `<div class="text-red-600 text-center p-4">
-                    <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
-                    <p>حدث خطأ أثناء تحميل المساعد: ${err.message}</p>
-                    <button onclick="location.reload()" class="mt-3 bg-blue-600 text-white px-3 py-1 rounded">إعادة تحميل الصفحة</button>
-                </div>`;
-            }
-            showToast('فشل تحميل المساعد الذكي', 'error');
+        }
+        
+        let totalWatts = wallLoad + peopleLoad + lightLoad + equipLoad + productLoad + infiltrationLoad;
+        totalWatts *= 1.15;
+        
+        const btu = totalWatts * 3.412;
+        const hp = btu / 8000;
+        const ton = btu / 12000;
+        const amp = totalWatts / 220;
+        const hpRec = roundUpHP(hp);
+        const tonRec = (hpRec * 8000) / 12000;
+        const wattRec = hpRec * 745.6;
+        const ampRec = wattRec / 220;
+        
+        showFullRes('نتيجة الحمل المتقدم', {
+            ' تحذير': 'هذه الحسابات تقريبية وقد تختلف في الواقع العملي',
+            'نوع الغرفة': roomType === 'ac' ? 'تكييف عادي' : (roomType === 'cooler' ? 'غرفة تبريد (2°C)' : 'غرفة تجميد (-20°C)'),
+            'الأبعاد': `${l} x ${w} x ${h} م`,
+            'الحجم (م³)': volume.toFixed(1),
+            'مساحة الأسطح (م²)': surfaceArea.toFixed(1),
+            'حمولة الجدران (واط)': wallLoad.toFixed(0),
+            'حمولة الأشخاص (واط)': peopleLoad.toFixed(0),
+            'الإضاءة (واط)': lightLoad.toFixed(0),
+            'الأجهزة (واط)': equipLoad.toFixed(0),
+            'حمولة البضائع (واط)': productLoad.toFixed(0),
+            ' تسريب الهواء (واط)': infiltrationLoad.toFixed(0),
+            'الإجمالي قبل الاحتياطي (واط)': (totalWatts / 1.15).toFixed(0),
+            'الإجمالي بعد الاحتياطي (واط)': totalWatts.toFixed(0),
+            'الإجمالي (BTU/h)': btu.toFixed(0),
+            'الحصان الفعلي (HP)': hp.toFixed(2),
+            'التيار (أمبير)': amp.toFixed(2),
+            'الحصان الموصى به (تقريب 0.5)': hpRec,
+            'الطن الموصى به': tonRec.toFixed(2),
+            'القدرة الموصى بها (واط)': wattRec.toFixed(0),
+            'التيار الموصى به (أمبير)': ampRec.toFixed(2),
+            'ملاحظة': 'تم إضافة 15% احتياطي للتهوية وفتح الأبواب، وحمل تسريب الهواء حسب ACH المختار'
+        });
+    };
+    
+    const performCalculation = async () => {
+        if (activeMode === 'normal') {
+            calculateNormal();
+        } else {
+            await calculateAdvanced();
         }
     };
     
-    // إعطاء مهلة قصيرة لظهور الحاوية في DOM
-    setTimeout(initAISafely, 150);
+    const renderContent = () => {
+        const html = `
+            <div class="p-3">
+                <div class="flex gap-2 mb-4 border-b pb-2">
+                    <button id="tabNormal" class="tab-btn ${activeMode === 'normal' ? 'active' : ''}" style="flex:1; padding:8px 0;">تكييف عادي</button>
+                    <button id="tabAdvanced" class="tab-btn ${activeMode === 'advanced' ? 'active' : ''}" style="flex:1; padding:8px 0;"> حمل متقدم</button>
+                </div>
+                <div id="roomContent">
+                    ${activeMode === 'normal' ? `
+                        <div class="space-y-3">
+                            <div class="instruction-box p-2 text-sm"> حسب الأبعاد والمعامل الحراري فقط</div>
+                            <div><label class="block text-sm font-bold mb-1">الطول (م)</label><input type="number" step="any" id="r_l" value="5"></div>
+                            <div><label class="block text-sm font-bold mb-1">العرض (م)</label><input type="number" step="any" id="r_w" value="4"></div>
+                            <div><label class="block text-sm font-bold mb-1">الارتفاع (م)</label><input type="number" step="any" id="r_h" value="3"></div>
+                            <div><label class="block text-sm font-bold mb-1">المعامل الحراري (btu/m³)</label>
+                                <select id="r_factor">
+                                    <option value="250">عادي - 250</option>
+                                    <option value="300" selected>مشمس - 300</option>
+                                    <option value="350">مطبخ - 350</option>
+                                    <option value="400">حمل عالي - 400</option>
+                                </select>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="space-y-3">
+                            <div class="instruction-box p-2 text-sm"> يشمل العزل، الأشخاص، الإضاءة، الأجهزة، البضائع، وتسريب الهواء (ACH)</div>
+                            <div><label class="block text-sm font-bold mb-1">الطول (م)</label><input type="number" step="any" id="adv_l" value="6"></div>
+                            <div><label class="block text-sm font-bold mb-1">العرض (م)</label><input type="number" step="any" id="adv_w" value="5"></div>
+                            <div><label class="block text-sm font-bold mb-1">الارتفاع (م)</label><input type="number" step="any" id="adv_h" value="3"></div>
+                            <div><label class="block text-sm font-bold mb-1">نوع الغرفة</label>
+                                <select id="adv_room_type">
+                                    <option value="ac">تكييف عادي (تبريد بشري)</option>
+                                    <option value="cooler">غرفة تبريد (0°C إلى 4°C)</option>
+                                    <option value="freezer">غرفة تجميد (-18°C إلى -25°C)</option>
+                                </select>
+                            </div>
+                            <div id="productLoadDiv" style="display:none;" class="border p-3 rounded-lg bg-gray-50 space-y-2">
+                                <div class="font-bold text-sm">حمل البضائع</div>
+                                <div><label class="block text-xs">الوزن (كجم)</label><input type="number" step="any" id="product_weight" placeholder="الوزن"></div>
+                                <div><label class="block text-xs">نوع المنتج</label>
+                                    <select id="product_type">
+                                        <option value="veg">خضروات/فواكه</option>
+                                        <option value="meat" selected>لحوم</option>
+                                        <option value="dairy">ألبان</option>
+                                        <option value="general">عام</option>
+                                    </select>
+                                </div>
+                                <div><label class="block text-xs">حرارة دخول المنتج (°C)</label><input type="number" step="any" id="product_entry_temp" value="25"></div>
+                                <div><label class="block text-xs">زمن التبريد (ساعات)</label><input type="number" step="any" id="cooling_time" value="12"></div>
+                            </div>
+                            <div><label class="block text-sm font-bold mb-1"> العزل الحراري (U واط/م²·ك)</label>
+                                <select id="insulation">
+                                    <option value="0.5">ممتاز (U=0.5)</option>
+                                    <option value="0.8">جيد (U=0.8)</option>
+                                    <option value="1.2" selected>متوسط (U=1.2)</option>
+                                    <option value="2.0">ضعيف (U=2.0)</option>
+                                </select>
+                            </div>
+                            <div><label class="block text-sm font-bold mb-1"> تسريب الهواء (ACH)</label>
+                                <select id="infiltration_ach">
+                                    <option value="0.3">غرفة مغلقة جيدًا (0.3)</option>
+                                    <option value="0.5" selected>غرفة عادية (0.5)</option>
+                                    <option value="0.7">مكتب / منزل (0.7)</option>
+                                    <option value="1.0">مطبخ / محل (1.0)</option>
+                                    <option value="2.0">باب يفتح كثيرًا (2.0)</option>
+                                    <option value="3.0">غرفة تبريد / تجميد (3.0)</option>
+                                </select>
+                            </div>
+                            <div><label class="block text-sm font-bold mb-1"> عدد الأشخاص</label><input type="number" id="people_count" value="2"></div>
+                            <div><label class="block text-sm font-bold mb-1"> الإضاءة (واط)</label><input type="number" step="any" id="lighting_watt" value="200"></div>
+                            <div><label class="block text-sm font-bold mb-1">الأجهزة الكهربائية (واط)</label><input type="number" step="any" id="equipment_watt" value="500"></div>
+                            <div><label class="block text-sm font-bold mb-1"> درجة حرارة الخارج (°C)</label><input type="number" step="any" id="outside_temp" value="35"></div>
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+        
+        setContent(html, null);
+        
+        setTimeout(() => {
+            const tabNormal = document.getElementById('tabNormal');
+            const tabAdvanced = document.getElementById('tabAdvanced');
+            if (tabNormal) {
+                tabNormal.onclick = () => {
+                    window._roomActiveMode = 'normal';
+                    activeMode = 'normal';
+                    renderContent();
+                };
+            }
+            if (tabAdvanced) {
+                tabAdvanced.onclick = () => {
+                    window._roomActiveMode = 'advanced';
+                    activeMode = 'advanced';
+                    renderContent();
+                };
+            }
+            
+            const roomSelect = document.getElementById('adv_room_type');
+            const toggleProduct = () => {
+                const div = document.getElementById('productLoadDiv');
+                if (div && roomSelect) {
+                    div.style.display = (roomSelect.value === 'cooler' || roomSelect.value === 'freezer') ? 'block' : 'none';
+                    clearResult();
+                }
+            };
+            if (roomSelect) {
+                roomSelect.onchange = toggleProduct;
+                toggleProduct();
+            }
+            
+            bindClearResultOnChange(document.getElementById('modalBody'));
+        }, 20);
+        
+        const calcButton = document.getElementById('calculateBtn');
+        if (calcButton) {
+            calcButton.style.display = 'flex';
+            calcButton.onclick = () => withLoading(calcButton, performCalculation);
+        }
+    };
+    
+    renderContent();
+    return;
 }
 
-//ادوات التبريد 
-else if (toolId === 'room') {
-        title.innerText = ' حساب أحمال الغرف';
-        let activeMode = window._roomActiveMode || 'normal';
-        
-        // دالة التقريب للحصان (نصف حصان)
-        const roundUpHP = (hp) => {
-            if (hp <= 0.5) return 0.5;
-            if (hp <= 0.75) return 0.75;
-            if (hp <= 1) return 1;
-            if (hp <= 1.5) return 1.5;
-            if (hp <= 2) return 2;
-            if (hp <= 2.5) return 2.5;
-            if (hp <= 3) return 3;
-            if (hp <= 4) return 4;
-            if (hp <= 5) return 5;
-            return Math.ceil(hp);
-        };
-        
-        const calculateNormal = () => {
-            const l = parseFloat(document.getElementById('r_l')?.value);
-            const w = parseFloat(document.getElementById('r_w')?.value);
-            const h = parseFloat(document.getElementById('r_h')?.value);
-            const factorVal = parseFloat(document.getElementById('r_factor')?.value);
-            if (isNaN(l) || isNaN(w) || isNaN(h) || l <= 0 || w <= 0 || h <= 0) {
-                showToast('أدخل أبعاداً موجبة', 'warning');
-                return;
-            }
-            const volume = l * w * h;
-            const btu = volume * factorVal;
-            const hp = btu / 8000;
-            const ton = btu / 12000;
-            const watt = hp * 745.6;
-            const amp = watt / 220;
-            const hpRec = roundUpHP(hp);
-            const tonRec = (hpRec * 8000) / 12000;
-            const wattRec = hpRec * 745.6;
-            const ampRec = wattRec / 220;
-            
-            showFullRes('نتيجة حمل التكييف العادي', {
-                ' تحذير': 'هذه الحسابات تقريبية وقد تختلف في الواقع العملي ',
-                'الأبعاد': `${l} x  ${w} x ${h} m`,
-                'الحجم (م³)': volume.toFixed(1),
-                'المعامل الحراري': factorVal + ' btu/m³',
-                'الحمل الحراري (BTU/h)': btu.toFixed(0),
-                'الحصان الفعلي (HP)': hp.toFixed(2),
-                'طن التبريد (Ton)': ton.toFixed(2),
-                'القدرة (واط)': watt.toFixed(0),
-                'التيار (أمبير)': amp.toFixed(2),
-                'الحصان الموصى به': hpRec,
-                'الطن الموصى به': tonRec.toFixed(2),
-                'القدرة الموصى بها (واط)': wattRec.toFixed(0),
-                'التيار الموصى به (أمبير)': ampRec.toFixed(2)
-            });
-        };
-        
-        const calculateAdvanced = async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
-            const l = parseFloat(document.getElementById('adv_l')?.value);
-            const w = parseFloat(document.getElementById('adv_w')?.value);
-            const h = parseFloat(document.getElementById('adv_h')?.value);
-            const roomType = document.getElementById('adv_room_type')?.value;
-            const insulationU = parseFloat(document.getElementById('insulation')?.value);
-            const people = parseInt(document.getElementById('people_count')?.value) || 0;
-            const lightingW = parseFloat(document.getElementById('lighting_watt')?.value) || 0;
-            const equipmentW = parseFloat(document.getElementById('equipment_watt')?.value) || 0;
-            const outsideTemp = parseFloat(document.getElementById('outside_temp')?.value) || 35;
-            const ach = parseFloat(document.getElementById('infiltration_ach')?.value) || 0.5;  // قراءة ACH
-            
-            if (isNaN(l) || isNaN(w) || isNaN(h) || l <= 0 || w <= 0 || h <= 0) {
-                showToast('أدخل أبعاداً موجبة', 'warning');
-                return;
-            }
-            
-            const volume = l * w * h;
-            const surfaceArea = 2 * (l*w + l*h + w*h);
-            let insideTemp = 24;
-            if (roomType === 'cooler') insideTemp = 2;
-            else if (roomType === 'freezer') insideTemp = -20;
-            
-            const wallLoad = surfaceArea * insulationU * (outsideTemp - insideTemp);
-            const peopleLoad = people * (roomType === 'ac' ? 150 : 250);
-            const lightLoad = lightingW;
-            const equipLoad = equipmentW;
-            
-            // حساب حمل تسريب الهواء (واط)
-            const infiltrationLoad = 1.2 * ach * volume * (outsideTemp - insideTemp);
-            
-            let productLoad = 0;
-            if (roomType !== 'ac') {
-                const weight = parseFloat(document.getElementById('product_weight')?.value);
-                const productType = document.getElementById('product_type')?.value;
-                const entryTemp = parseFloat(document.getElementById('product_entry_temp')?.value);
-                const coolTime = parseFloat(document.getElementById('cooling_time')?.value);
-                if (!isNaN(weight) && weight > 0 && !isNaN(coolTime) && coolTime > 0) {
-                    let cp, latentHeat = 0;
-                    if (productType === 'veg') cp = 3.6;
-                    else if (productType === 'meat') { cp = 3.2; latentHeat = 210; }
-                    else if (productType === 'dairy') cp = 3.8;
-                    else cp = 3.5;
-                    const sensible = weight * cp * (entryTemp - insideTemp);
-                    let latent = 0;
-                    if (roomType === 'freezer' && latentHeat > 0 && insideTemp < 0) latent = weight * latentHeat;
-                    productLoad = ((sensible + latent) / coolTime) * (1000 / 3600);
-                }
-            }
-            
-            // جمع جميع الأحمال (بما فيها تسريب الهواء)
-            let totalWatts = wallLoad + peopleLoad + lightLoad + equipLoad + productLoad + infiltrationLoad;
-            totalWatts *= 1.15;   // إضافة احتياطي 15%
-            
-            const btu = totalWatts * 3.412;
-            const hp = btu / 8000;
-            const ton = btu / 12000;
-            const amp = totalWatts / 220;
-            const hpRec = roundUpHP(hp);
-            const tonRec = (hpRec * 8000) / 12000;
-            const wattRec = hpRec * 745.6;
-            const ampRec = wattRec / 220;
-            
-            showFullRes('نتيجة الحمل المتقدم', {
-                ' تحذير': 'هذه الحسابات تقريبية وقد تختلف في الواقع العملي',
-                'نوع الغرفة': roomType === 'ac' ? 'تكييف عادي' : (roomType === 'cooler' ? 'غرفة تبريد (2°C)' : 'غرفة تجميد (-20°C)'),
-                'الأبعاد': `${l} x ${w} x ${h} م`,
-                'الحجم (م³)': volume.toFixed(1),
-                'مساحة الأسطح (م²)': surfaceArea.toFixed(1),
-                'حمولة الجدران (واط)': wallLoad.toFixed(0),
-                'حمولة الأشخاص (واط)': peopleLoad.toFixed(0),
-                'الإضاءة (واط)': lightLoad.toFixed(0),
-                'الأجهزة (واط)': equipLoad.toFixed(0),
-                'حمولة البضائع (واط)': productLoad.toFixed(0),
-                ' تسريب الهواء (واط)': infiltrationLoad.toFixed(0),
-                'الإجمالي قبل الاحتياطي (واط)': (totalWatts / 1.15).toFixed(0),
-                'الإجمالي بعد الاحتياطي (واط)': totalWatts.toFixed(0),
-                'الإجمالي (BTU/h)': btu.toFixed(0),
-                'الحصان الفعلي (HP)': hp.toFixed(2),
-                'التيار (أمبير)': amp.toFixed(2),
-                'الحصان الموصى به (تقريب 0.5)': hpRec,
-                'الطن الموصى به': tonRec.toFixed(2),
-                'القدرة الموصى بها (واط)': wattRec.toFixed(0),
-                'التيار الموصى به (أمبير)': ampRec.toFixed(2),
-                'ملاحظة': 'تم إضافة 15% احتياطي للتهوية وفتح الأبواب، وحمل تسريب الهواء حسب ACH المختار'
-            });
-        };
-        
-        const performCalculation = async () => {
-            if (activeMode === 'normal') {
-                calculateNormal();
-            } else {
-                await calculateAdvanced();
-            }
-        };
-        
-        const renderContent = () => {
-            const html = `
-                <div class="p-3">
-                    <div class="flex gap-2 mb-4 border-b pb-2">
-                        <button id="tabNormal" class="tab-btn ${activeMode === 'normal' ? 'active' : ''}" style="flex:1; padding:8px 0;">تكييف عادي</button>
-                        <button id="tabAdvanced" class="tab-btn ${activeMode === 'advanced' ? 'active' : ''}" style="flex:1; padding:8px 0;"> حمل متقدم</button>
-                    </div>
-                    <div id="roomContent">
-                        ${activeMode === 'normal' ? `
-                            <div class="space-y-3">
-                                <div class="instruction-box p-2 text-sm"> حسب الأبعاد والمعامل الحراري فقط</div>
-                                <div><label class="block text-sm font-bold mb-1">الطول (م)</label><input type="number" step="any" id="r_l" value="5"></div>
-                                <div><label class="block text-sm font-bold mb-1">العرض (م)</label><input type="number" step="any" id="r_w" value="4"></div>
-                                <div><label class="block text-sm font-bold mb-1">الارتفاع (م)</label><input type="number" step="any" id="r_h" value="3"></div>
-                                <div><label class="block text-sm font-bold mb-1">المعامل الحراري (btu/m³)</label>
-                                    <select id="r_factor">
-                                        <option value="250">عادي - 250</option>
-                                        <option value="300" selected>مشمس - 300</option>
-                                        <option value="350">مطبخ - 350</option>
-                                        <option value="400">حمل عالي - 400</option>
-                                    </select>
-                                </div>
-                            </div>
-                        ` : `
-                            <div class="space-y-3">
-                                <div class="instruction-box p-2 text-sm"> يشمل العزل، الأشخاص، الإضاءة، الأجهزة، البضائع، وتسريب الهواء (ACH)</div>
-                                <div><label class="block text-sm font-bold mb-1">الطول (م)</label><input type="number" step="any" id="adv_l" value="6"></div>
-                                <div><label class="block text-sm font-bold mb-1">العرض (م)</label><input type="number" step="any" id="adv_w" value="5"></div>
-                                <div><label class="block text-sm font-bold mb-1">الارتفاع (م)</label><input type="number" step="any" id="adv_h" value="3"></div>
-                                <div><label class="block text-sm font-bold mb-1">نوع الغرفة</label>
-                                    <select id="adv_room_type">
-                                        <option value="ac">تكييف عادي (تبريد بشري)</option>
-                                        <option value="cooler">غرفة تبريد (0°C إلى 4°C)</option>
-                                        <option value="freezer">غرفة تجميد (-18°C إلى -25°C)</option>
-                                    </select>
-                                </div>
-                                <div id="productLoadDiv" style="display:none;" class="border p-3 rounded-lg bg-gray-50 space-y-2">
-                                    <div class="font-bold text-sm">حمل البضائع</div>
-                                    <div><label class="block text-xs">الوزن (كجم)</label><input type="number" step="any" id="product_weight" placeholder="الوزن"></div>
-                                    <div><label class="block text-xs">نوع المنتج</label>
-                                        <select id="product_type">
-                                            <option value="veg">خضروات/فواكه</option>
-                                            <option value="meat" selected>لحوم</option>
-                                            <option value="dairy">ألبان</option>
-                                            <option value="general">عام</option>
-                                        </select>
-                                    </div>
-                                    <div><label class="block text-xs">حرارة دخول المنتج (°C)</label><input type="number" step="any" id="product_entry_temp" value="25"></div>
-                                    <div><label class="block text-xs">زمن التبريد (ساعات)</label><input type="number" step="any" id="cooling_time" value="12"></div>
-                                </div>
-                                <div><label class="block text-sm font-bold mb-1"> العزل الحراري (U واط/م²·ك)</label>
-                                    <select id="insulation">
-                                        <option value="0.5">ممتاز (U=0.5)</option>
-                                        <option value="0.8">جيد (U=0.8)</option>
-                                        <option value="1.2" selected>متوسط (U=1.2)</option>
-                                        <option value="2.0">ضعيف (U=2.0)</option>
-                                    </select>
-                                </div>
-                                <div><label class="block text-sm font-bold mb-1"> تسريب الهواء (ACH)</label>
-                                    <select id="infiltration_ach">
-                                        <option value="0.3">غرفة مغلقة جيدًا (0.3)</option>
-                                        <option value="0.5" selected>غرفة عادية (0.5)</option>
-                                        <option value="0.7">مكتب / منزل (0.7)</option>
-                                        <option value="1.0">مطبخ / محل (1.0)</option>
-                                        <option value="2.0">باب يفتح كثيرًا (2.0)</option>
-                                        <option value="3.0">غرفة تبريد / تجميد (3.0)</option>
-                                    </select>
-                                </div>
-                                <div><label class="block text-sm font-bold mb-1"> عدد الأشخاص</label><input type="number" id="people_count" value="2"></div>
-                                <div><label class="block text-sm font-bold mb-1"> الإضاءة (واط)</label><input type="number" step="any" id="lighting_watt" value="200"></div>
-                                <div><label class="block text-sm font-bold mb-1">الأجهزة الكهربائية (واط)</label><input type="number" step="any" id="equipment_watt" value="500"></div>
-                                <div><label class="block text-sm font-bold mb-1"> درجة حرارة الخارج (°C)</label><input type="number" step="any" id="outside_temp" value="35"></div>
-                            </div>
-                        `}
-                    </div>
-                </div>
-            `;
-            
-            setContent(html, null);
-            
-            setTimeout(() => {
-                const tabNormal = document.getElementById('tabNormal');
-                const tabAdvanced = document.getElementById('tabAdvanced');
-                if (tabNormal) {
-                    tabNormal.onclick = () => {
-                        window._roomActiveMode = 'normal';
-                        activeMode = 'normal';
-                        renderContent();
-                    };
-                }
-                if (tabAdvanced) {
-                    tabAdvanced.onclick = () => {
-                        window._roomActiveMode = 'advanced';
-                        activeMode = 'advanced';
-                        renderContent();
-                    };
-                }
-                
-                const roomSelect = document.getElementById('adv_room_type');
-                const toggleProduct = () => {
-                    const div = document.getElementById('productLoadDiv');
-                    if (div && roomSelect) {
-                        div.style.display = (roomSelect.value === 'cooler' || roomSelect.value === 'freezer') ? 'block' : 'none';
-                        clearResult();
-                    }
-                };
-                if (roomSelect) {
-                    roomSelect.onchange = toggleProduct;
-                    toggleProduct();
-                }
-                
-                bindClearResultOnChange(document.getElementById('modalBody'));
-            }, 20);
-            
-            const calcButton = document.getElementById('calculateBtn');
-            if (calcButton) {
-                calcButton.style.display = 'flex';
-                calcButton.onclick = () => withLoading(calcButton, performCalculation);
-            }
-        };
-        
-        renderContent();
-    }
-    
-    // ================= أداة الكابلري (مع تحذير التقريب) =================
-    else if (toolId === 'capillary') {
+else if (toolId === 'capillary') {
     title.innerText = ' حساب الكابلري (الأنبوب الشعري) ';
-
-    // ========== التأكد من وجود الدوال الأساسية مع تحسينات ==========
-    if (typeof getPressureFromTemp !== 'function') {
-        window.getPressureFromTemp = (refrigerant, tempC) => {
-            const data = refPTData?.[refrigerant];
-            if (!data) return NaN;
-            const { temps, pressures } = data;
-            if (tempC <= temps[0]) return pressures[0];
-            if (tempC >= temps[temps.length-1]) return pressures[temps.length-1];
-            // Cubic Spline interpolation (أدق من الخطي)
-            for (let i = 1; i < temps.length - 2; i++) {
-                if (tempC >= temps[i] && tempC <= temps[i+1]) {
-                    const t0 = temps[i-1], t1 = temps[i], t2 = temps[i+1], t3 = temps[i+2];
-                    const p0 = pressures[i-1], p1 = pressures[i], p2 = pressures[i+1], p3 = pressures[i+2];
-                    const mu = (tempC - t1) / (t2 - t1);
-                    const a0 = -0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3;
-                    const a1 = p0 - 2.5*p1 + 2*p2 - 0.5*p3;
-                    const a2 = -0.5*p0 + 0.5*p2;
-                    const a3 = p1;
-                    return a0*mu*mu*mu + a1*mu*mu + a2*mu + a3;
-                }
-            }
-            return pressures[pressures.length-1];
-        };
-    }
-
-    // جدول كثافة السائل والبخار لكل فريون (بيانات تقريبية محسنة)
-    if (typeof densityTable === 'undefined') {
-        window.densityTable = {
-            'R22': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1250, 1235, 1220, 1205, 1190, 1175, 1160, 1145, 1130, 1115] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [7.5, 9.2, 11.2, 13.5, 16.1, 19.0, 22.3, 26.0, 30.1, 34.6] }
-            },
-            'R410A': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1150, 1135, 1120, 1105, 1090, 1075, 1060, 1045, 1030, 1015] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [10.5, 12.8, 15.5, 18.6, 22.2, 26.3, 31.0, 36.2, 42.0, 48.5] }
-            },
-            'R134a': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1280, 1265, 1250, 1235, 1220, 1205, 1190, 1175, 1160, 1145] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [6.2, 7.8, 9.7, 12.0, 14.7, 17.8, 21.4, 25.5, 30.2, 35.6] }
-            },
-            'R404A': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1120, 1105, 1090, 1075, 1060, 1045, 1030, 1015, 1000, 985] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [11.0, 13.5, 16.4, 19.8, 23.7, 28.2, 33.3, 39.2, 45.9, 53.5] }
-            },
-            'R407C': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1190, 1175, 1160, 1145, 1130, 1115, 1100, 1085, 1070, 1055] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [8.2, 10.0, 12.2, 14.8, 17.9, 21.4, 25.5, 30.2, 35.6, 41.8] }
-            },
-            'R32': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1020, 1005, 990, 975, 960, 945, 930, 915, 900, 885] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [12.0, 15.0, 18.6, 22.9, 27.9, 33.8, 40.6, 48.5, 57.7, 68.3] }
-            },
-            'R290': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [540, 530, 520, 510, 500, 490, 480, 470, 460, 450] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [4.5, 5.8, 7.4, 9.4, 11.8, 14.7, 18.2, 22.4, 27.4, 33.3] }
-            },
-            'R600a': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [600, 590, 580, 570, 560, 550, 540, 530, 520, 510] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [2.2, 3.0, 4.0, 5.3, 6.9, 8.9, 11.4, 14.5, 18.3, 22.9] }
-            }
-        };
-    }
-
-    // دالة استخراج الكثافة بواسطة الجدول (سائل أو بخار)
-    if (typeof getDensityFromTemp !== 'function') {
-        window.getDensityFromTemp = (refrigerant, tempC, phase = 'liquid') => {
-            const table = densityTable[refrigerant]?.[phase];
-            if (!table) return (phase === 'liquid' ? 1000 : 5);
-            const { temps, values } = table;
-            if (tempC <= temps[0]) return values[0];
-            if (tempC >= temps[temps.length-1]) return values[temps.length-1];
-            for (let i = 0; i < temps.length-1; i++) {
-                if (tempC >= temps[i] && tempC <= temps[i+1]) {
-                    return values[i] + (tempC - temps[i]) * (values[i+1] - values[i]) / (temps[i+1] - temps[i]);
-                }
-            }
-            return values[values.length-1];
-        };
-    }
-
-    if (typeof showFullRes !== 'function') window.showFullRes = (title, obj) => { alert(title + "\n" + JSON.stringify(obj, null, 2)); };
-    if (typeof showToast !== 'function') window.showToast = (msg, type) => alert(msg);
-    if (typeof clearResult !== 'function') window.clearResult = () => {};
-
-    // بيانات الأقطار المتاحة (بوصة)
-    const capillarySizes = [
-        { inch:0.026, maxFlow:0.002 }, { inch:0.028, maxFlow:0.003 }, { inch:0.031, maxFlow:0.005 },
-        { inch:0.036, maxFlow:0.008 }, { inch:0.040, maxFlow:0.010 }, { inch:0.042, maxFlow:0.012 },
-        { inch:0.050, maxFlow:0.018 }, { inch:0.055, maxFlow:0.022 }, { inch:0.064, maxFlow:0.028 },
-        { inch:0.070, maxFlow:0.035 }
-    ];
-
-    // ========== النموذج المتقدم (محسّن) ==========
+    
+    const capillarySizes = TOOL_CONSTANTS.capillarySizes;
+    
     function advancedCapillary(capacityWatts, refrigerant, evapTemp, condTemp, subcooling, superheat, liquidLineLen, segments = 30) {
-        const propsStat = {
-            'R22':   { viscL:0.00023, viscG:0.000013, CpL: 1200, CpG: 800, h_fg: 200000 },
-            'R410A': { viscL:0.00022, viscG:0.000014, CpL: 1500, CpG: 900, h_fg: 260000 },
-            'R134a': { viscL:0.00028, viscG:0.000012, CpL: 1400, CpG: 750, h_fg: 217000 },
-            'R404A': { viscL:0.00024, viscG:0.000013, CpL: 1300, CpG: 800, h_fg: 200000 },
-            'R407C': { viscL:0.00025, viscG:0.000013, CpL: 1450, CpG: 850, h_fg: 250000 },
-            'R32':   { viscL:0.00020, viscG:0.000011, CpL: 1700, CpG: 1000, h_fg: 320000 },
-            'R290':  { viscL:0.00012, viscG:0.000008, CpL: 2300, CpG: 1500, h_fg: 425000 },
-            'R600a': { viscL:0.00018, viscG:0.000009, CpL: 2200, CpG: 1400, h_fg: 360000 }
-        };
-        const props = propsStat[refrigerant];
+        const props = TOOL_CONSTANTS.refrigerantPropsGlobal[refrigerant];
         if (!props) return null;
-
-        // فرق الضغط الكلي مع خسائر خط السائل
+        
         let deltaP_total = getPressureFromTemp(refrigerant, condTemp) - getPressureFromTemp(refrigerant, evapTemp);
         deltaP_total = Math.max(deltaP_total - (0.5 + liquidLineLen * 0.03), 0.8);
         if (deltaP_total < 0.8) return null;
-
-        // إنثالبي الدخول والخروج (تقريبية)
+        
         let h_liq = 200000 - subcooling * 2000;
         let h_vap = 400000 + superheat * 2000;
         let delta_h = Math.max(h_vap - h_liq, 50000);
         let massFlow = capacityWatts / delta_h;
         if (massFlow <= 0) massFlow = 0.003;
-
+        
         let candidates = [];
         for (let diam of capillarySizes.map(s => s.inch)) {
             const d_m = diam * 0.0254;
             const area = Math.PI * d_m * d_m / 4;
             let rhoL_entry = getDensityFromTemp(refrigerant, condTemp - subcooling, 'liquid');
             let vel = massFlow / (rhoL_entry * area);
-
-            // فحص التدفق المختنق (Choked Flow)
+            
             let P_entry = getPressureFromTemp(refrigerant, condTemp) - (0.3 + liquidLineLen * 0.02);
             let P_exit = getPressureFromTemp(refrigerant, evapTemp);
             let criticalVelocity = Math.sqrt(2 * (P_entry - P_exit) * 1e5 / rhoL_entry);
             if (vel > criticalVelocity) vel = criticalVelocity;
-
-            let Re = (rhoL_entry * vel * d_m) / props.viscL;
+            
+            let Re = (rhoL_entry * vel * d_m) / props.viscosity_liq;
             let f = (Re < 2000) ? (64 / Re) : (0.316 / Math.pow(Re, 0.25));
-
-            // تقسيم الأنبوب إلى شرائح
+            
             let deltaP_seg = (P_entry - P_exit) / segments;
             let totalLength = 0;
             let P_current = P_entry;
-            let quality = 0;
-
+            
             for (let i = 0; i < segments; i++) {
                 let P_next = Math.max(P_current - deltaP_seg, P_exit);
-                // حساب الجودة بناءً على المحتوى الحراري (أكثر دقة)
-                let h_current = h_liq + (i/segments) * (h_vap - h_liq);
-                let x = (h_current - h_liq) / (h_vap - h_liq);
+                let x = i/segments;
                 x = Math.min(Math.max(x, 0), 0.98);
-
+                
                 let rhoL_avg = getDensityFromTemp(refrigerant, condTemp - subcooling + (i/segments)*10, 'liquid');
                 let rhoG_avg = getDensityFromTemp(refrigerant, evapTemp + superheat + (i/segments)*5, 'vapor');
                 let rho_mix = 1 / ((1-x)/rhoL_avg + x/rhoG_avg);
-                let mu_mix = props.viscL * (1 - x) + props.viscG * x;
+                let mu_mix = props.viscosity_liq * (1 - x) + props.viscosity_vapor * x;
                 let vel_mix = massFlow / (rho_mix * area);
                 let Re_mix = (rho_mix * vel_mix * d_m) / mu_mix;
-
-                // معامل احتكاك متغير
+                
                 let f_mix;
                 if (Re_mix < 2000) f_mix = 64 / Re_mix;
                 else f_mix = 0.316 / Math.pow(Re_mix, 0.25);
-
-                // معامل Lockhart-Martinelli مع C متغير
-                let Xtt = Math.pow((1-x)/Math.max(x, 0.001), 0.9) * Math.pow(rhoG_avg/rhoL_avg, 0.5) * Math.pow(props.viscL/props.viscG, 0.1);
-                let C = (Re_mix < 2000) ? 5 : 20; // صفحي أو مضطرب
+                
+                let Xtt = Math.pow((1-x)/Math.max(x,0.001), 0.9) * Math.pow(rhoG_avg/rhoL_avg, 0.5) * Math.pow(props.viscosity_liq/props.viscosity_vapor, 0.1);
+                let C = (Re_mix < 2000) ? 5 : 20;
                 let phiL2 = 1 + C/Xtt + 1/(Xtt*Xtt);
-
-                // انخفاض الضغط الاحتكاكي
+                
                 let dpdz_fric = f_mix * (1/d_m) * 0.5 * rho_mix * vel_mix * vel_mix * phiL2;
-                // انخفاض الضغط نتيجة التسارع
                 let dpdz_acc = massFlow * massFlow * (1/rhoG_avg - 1/rhoL_avg) / d_m;
                 let dpdz = Math.max(dpdz_fric + dpdz_acc, 1);
-
+                
                 let dz = deltaP_seg * 1e5 / dpdz;
                 totalLength += dz;
-
-                quality = x;
+                
                 P_current = P_next;
                 if (P_current <= P_exit) break;
             }
-            // إزالة clamping القاسي: نضمن فقط ألا يكون سالبًا أو صغيرًا جدًا
             totalLength = Math.max(totalLength, 0.2);
             candidates.push({ diameter: diam, length: totalLength, massFlow, deltaP: P_entry - P_exit, Re });
         }
-
-        // اختيار القطر الأمثل بناءً على سرعة معقولة بدلاً من maxFlow
+        
         let best = null;
         let bestScore = Infinity;
         for (let cand of candidates) {
@@ -1237,11 +773,9 @@ else if (toolId === 'room') {
             const area = Math.PI * d_m * d_m / 4;
             const rhoL = getDensityFromTemp(refrigerant, condTemp - subcooling, 'liquid');
             const velocity = cand.massFlow / (rhoL * area);
-            // السرعة المثالية بين 0.5 و 3 م/ث
             let velBonus = 0;
             if (velocity >= 0.5 && velocity <= 3.0) velBonus = -50;
             else velBonus = Math.abs(velocity - 1.5) * 20;
-            // الطول المثالي بين 1 و 3 متر
             let lengthScore = 0;
             if (cand.length >= 1 && cand.length <= 3) lengthScore = Math.abs(cand.length - 2);
             else if (cand.length < 1) lengthScore = 100 + (1 - cand.length);
@@ -1254,9 +788,8 @@ else if (toolId === 'room') {
         }
         return best;
     }
-
-    // ========== الوضع السريع (محسّن قليلاً) ==========
-    const refrigerantProps = {
+    
+    const refrigerantPropsQuick = {
         'R22':   { density:1190, viscosity:0.00023, h_liquid:200, h_vapor:400 },
         'R410A': { density:1090, viscosity:0.00022, h_liquid:220, h_vapor:480 },
         'R134a': { density:1207, viscosity:0.00028, h_liquid:180, h_vapor:397 },
@@ -1266,19 +799,21 @@ else if (toolId === 'room') {
         'R290':  { density:500,  viscosity:0.00012, h_liquid:280, h_vapor:705 },
         'R600a': { density:550,  viscosity:0.00018, h_liquid:260, h_vapor:620 }
     };
+    
     function quickMode(capacityWatts, refrigerant, evapTemp, condTemp, subcooling, superheat, liquidLineLen) {
-        const props = refrigerantProps[refrigerant];
+        const props = refrigerantPropsQuick[refrigerant];
         if (!props) return null;
+        
         let deltaP_bar = getPressureFromTemp(refrigerant, condTemp) - getPressureFromTemp(refrigerant, evapTemp);
         deltaP_bar = Math.max(deltaP_bar - (0.5 + liquidLineLen*0.02), 0.8);
+        
         let hL = props.h_liquid*1000 - subcooling*2000;
         let hV = props.h_vapor*1000 + superheat*2000;
         let delta_h = Math.max(hV - hL, 50000);
         let massFlow = capacityWatts / delta_h;
         if (massFlow <= 0) massFlow = 0.003;
-
-        // اختيار القطر بناءً على السرعة (ليس maxFlow الثابت)
-        let bestDiameter = capillarySizes[4].inch; // 0.040 افتراضي
+        
+        let bestDiameter = capillarySizes[4].inch;
         let bestVelocity = Infinity;
         for (let s of capillarySizes) {
             const d_m = s.inch * 0.0254;
@@ -1289,6 +824,7 @@ else if (toolId === 'room') {
                 bestDiameter = s.inch;
             }
         }
+        
         const diameter = bestDiameter;
         const d_m = diameter * 0.0254;
         const area = Math.PI * d_m * d_m / 4;
@@ -1298,17 +834,10 @@ else if (toolId === 'room') {
         let L = (deltaP_bar * 1e5 * d_m) / (f * 0.5 * props.density * velocity * velocity);
         let twoPhaseFactor = Math.min(Math.max(0.7 + superheat*0.015, 0.65), 0.95);
         L = Math.max(L * twoPhaseFactor, 0.3);
+        
         return { diameter, length: L, massFlow, deltaP: deltaP_bar, Re };
     }
-
-    function convertPower(value, unit) {
-        if (unit === 'btu') return { hp: value/8000, watt: value*0.293071, ton: value/12000 };
-        if (unit === 'watt') return { hp: value/745.7, watt: value, ton: value/3516.85 };
-        if (unit === 'hp') return { hp: value, watt: value*745.7, ton: value*0.747 };
-        return { hp:1, watt:1000, ton:1 };
-    }
-
-    // ========== دالة الحساب الرئيسية ==========
+    
     const calculateCapillary = () => {
         try {
             const refrigerant = document.getElementById('cap_ref')?.value;
@@ -1325,6 +854,7 @@ else if (toolId === 'room') {
                 showToast('يرجى إدخال جميع القيم بشكل صحيح', 'warning');
                 return;
             }
+            
             const power = convertPower(powerValue, powerUnit);
             if (power.watt <= 0) {
                 showToast('القدرة يجب أن تكون أكبر من صفر', 'warning');
@@ -1341,8 +871,9 @@ else if (toolId === 'room') {
             } else {
                 result = quickMode(power.watt, refrigerant, evapTemp, condTemp, subcooling, superheat, liquidLineLen);
             }
+            
             if (!result) return;
-
+            
             let deltaP_psi = (result.deltaP || 0) * 14.5038;
             let suggestions = [];
             if (result.length > 5) suggestions.push(` الطول الناتج (${result.length.toFixed(2)} م) طويل جداً → استخدم قطر أكبر أو زد Subcooling.`);
@@ -1353,14 +884,13 @@ else if (toolId === 'room') {
             if (result.massFlow > 0.035) suggestions.push(` معدل التدفق مرتفع جداً (${(result.massFlow*1000).toFixed(0)} جم/ث) → يفضل صمام تمدد بدلاً من الكابلري.`);
             if (result.Re < 1000) suggestions.push(` جريان طبقي (Re=${result.Re}) → أداء الكابلري ضعيف، غيّر القطر أو زد التدفق.`);
             if (suggestions.length === 0) suggestions.push(' الأبعاد مناسبة للتشغيل العادي');
-
-            // حساب السرعة الفعلية للقطر المختار
+            
             const d_m = result.diameter * 0.0254;
             const area = Math.PI * d_m * d_m / 4;
             const rhoL = getDensityFromTemp(refrigerant, condTemp - subcooling, 'liquid');
             const velocity = result.massFlow / (rhoL * area);
             suggestions.push(` سرعة السائل: ${velocity.toFixed(2)} م/ث ${(velocity>=0.5 && velocity<=3) ? '(مناسبة)' : '(يفضل ضبطها بين 0.5-3 م/ث)'}`);
-
+            
             const resultObj = {
                 ' الوضع': mode === 'advanced' ? 'دقيق (متعدد الشرائح)' : 'سريع (تقديري)',
                 'الفريون': refrigerant,
@@ -1379,45 +909,38 @@ else if (toolId === 'room') {
             showToast('خطأ في الحساب: ' + err.message, 'error');
         }
     };
-
-    // ========== بناء الواجهة وربط الزر ==========
-    let refrigerantOptions = '';
-    if (typeof refPTData !== 'undefined' && refPTData) {
-        refrigerantOptions = Object.keys(refPTData).map(r => `<option value="${r}">${r}</option>`).join('');
-    } else {
-        refrigerantOptions = Object.keys(refrigerantProps).map(r => `<option value="${r}">${r}</option>`).join('');
-    }
+    
+    let refrigerantOptions = Object.keys(TOOL_CONSTANTS.refrigerantPropsGlobal).map(r => `<option value="${r}">${r}</option>`).join('');
     
     setContent(`
-<div class="grid gap-3" dir="rtl" style="display: flex; flex-direction: column; gap: 1rem;">
-    <div><label class="block mb-1 text-sm font-semibold">نوع الفريون</label>
-    <select id="cap_ref">${refrigerantOptions}</select></div>
-    
-    <div><label class="block mb-1 text-sm font-semibold">وضع الحساب</label>
-    <select id="cap_mode"><option value="quick">سريع (تقديري)</option><option value="advanced" selected>دقيق (متقدم)</option></select></div>
-    
-    <div><label class="block mb-1 text-sm font-semibold">القدرة</label>
-    <div style="display: flex; gap: 0.5rem;"><input type="number" step="any" id="cap_power" value="12000">
-    <select id="cap_power_unit"><option value="btu">BTU/h</option><option value="watt">واط</option><option value="hp">HP</option></select></div></div>
-    
-    <div><label class="block mb-1 text-sm font-semibold">حرارة التبخير (°C)</label>
-    <input type="number" step="any" id="cap_evap_temp" value="5"></div>
-    
-    <div><label class="block mb-1 text-sm font-semibold">حرارة التكثيف (°C)</label>
-    <input type="number" step="any" id="cap_cond_temp" value="45"></div>
-    
-    <div><label class="block mb-1 text-sm font-semibold">Subcooling (°C)</label>
-    <input type="number" step="any" id="cap_subcooling" value="5"></div>
-    
-    <div><label class="block mb-1 text-sm font-semibold">Superheat (°C)</label>
-    <input type="number" step="any" id="cap_superheat" value="8"></div>
-    
-    <div><label class="block mb-1 text-sm font-semibold">طول خط السائل (م)</label>
-    <input type="number" step="any" id="cap_liquid_line" value="1"></div>
-</div>
+        <div class="grid gap-3" dir="rtl" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div><label class="block mb-1 text-sm font-semibold">نوع الفريون</label>
+            <select id="cap_ref">${refrigerantOptions}</select></div>
+            
+            <div><label class="block mb-1 text-sm font-semibold">وضع الحساب</label>
+            <select id="cap_mode"><option value="quick">سريع (تقديري)</option><option value="advanced" selected>دقيق (متقدم)</option></select></div>
+            
+            <div><label class="block mb-1 text-sm font-semibold">القدرة</label>
+            <div style="display: flex; gap: 0.5rem;"><input type="number" step="any" id="cap_power" value="12000">
+            <select id="cap_power_unit"><option value="btu">BTU/h</option><option value="watt">واط</option><option value="hp">HP</option></select></div></div>
+            
+            <div><label class="block mb-1 text-sm font-semibold">حرارة التبخير (°C)</label>
+            <input type="number" step="any" id="cap_evap_temp" value="5"></div>
+            
+            <div><label class="block mb-1 text-sm font-semibold">حرارة التكثيف (°C)</label>
+            <input type="number" step="any" id="cap_cond_temp" value="45"></div>
+            
+            <div><label class="block mb-1 text-sm font-semibold">Subcooling (°C)</label>
+            <input type="number" step="any" id="cap_subcooling" value="5"></div>
+            
+            <div><label class="block mb-1 text-sm font-semibold">Superheat (°C)</label>
+            <input type="number" step="any" id="cap_superheat" value="8"></div>
+            
+            <div><label class="block mb-1 text-sm font-semibold">طول خط السائل (م)</label>
+            <input type="number" step="any" id="cap_liquid_line" value="1"></div>
+        </div>
     `);
-
-    // ربط الزر
+    
     const existingBtn = document.getElementById('calculateBtn');
     if (existingBtn) {
         const newBtn = existingBtn.cloneNode(true);
@@ -1444,8 +967,7 @@ else if (toolId === 'room') {
         observer.observe(document.body, { childList: true, subtree: true });
         setTimeout(() => observer.disconnect(), 2000);
     }
-
-    // ربط مسح النتائج
+    
     const bindInputs = () => {
         const inputs = ['cap_ref', 'cap_power', 'cap_power_unit', 'cap_evap_temp', 'cap_cond_temp', 'cap_subcooling', 'cap_superheat', 'cap_liquid_line', 'cap_mode'];
         inputs.forEach(id => {
@@ -1458,188 +980,64 @@ else if (toolId === 'room') {
     };
     bindInputs();
     setTimeout(bindInputs, 100);
+    return;
 }
-    
-    // ================= أداة المبخر والمكثف =================
-   
-      else if (toolId === 'evap_cond') {
+
+else if (toolId === 'evap_cond') {
     title.innerText = ' تصميم المبخر والمكثف';
-
-    // ========== التأكد من الدوال الأساسية ==========
-    if (typeof showFullRes !== 'function') window.showFullRes = (title, obj) => { alert(title + "\n" + JSON.stringify(obj, null, 2)); };
-    if (typeof showToast !== 'function') window.showToast = (msg, type) => alert(msg);
-    if (typeof clearResult !== 'function') window.clearResult = () => {};
-
-    // ========== بيانات التطبيقات ==========
-    const appData = {
-        ac: { name: 'تكييف عادي', t_air_in_evap: 27, t_air_in_cond: 35, default_evap_temp: 7, default_cond_temp: 50, default_air_vel: 2.5 },
-        cooler: { name: 'غرفة تبريد', t_air_in_evap: 4, t_air_in_cond: 30, default_evap_temp: -5, default_cond_temp: 45, default_air_vel: 2.0 },
-        freezer: { name: 'غرفة تجميد', t_air_in_evap: -18, t_air_in_cond: 25, default_evap_temp: -25, default_cond_temp: 40, default_air_vel: 1.5 }
-    };
-
-    // ========== خصائص الفريونات (مع إضافة لزوجة البخار) ==========
-    const refrigerantProps = {
-        'R22':   { h_evap: 200000, density_liq: 1190, density_vapor: 35,  viscosity_liq: 0.00023, viscosity_vapor: 0.000013 },
-        'R410A': { h_evap: 260000, density_liq: 1090, density_vapor: 40,  viscosity_liq: 0.00022, viscosity_vapor: 0.000014 },
-        'R134a': { h_evap: 217000, density_liq: 1207, density_vapor: 32,  viscosity_liq: 0.00028, viscosity_vapor: 0.000012 },
-        'R404A': { h_evap: 200000, density_liq: 1040, density_vapor: 38,  viscosity_liq: 0.00024, viscosity_vapor: 0.000013 },
-        'R407C': { h_evap: 250000, density_liq: 1130, density_vapor: 36,  viscosity_liq: 0.00025, viscosity_vapor: 0.000013 },
-        'R32':   { h_evap: 320000, density_liq: 960,  density_vapor: 45,  viscosity_liq: 0.00020, viscosity_vapor: 0.000015 },
-        'R290':  { h_evap: 425000, density_liq: 500,  density_vapor: 22,  viscosity_liq: 0.00012, viscosity_vapor: 0.000008 },
-        'R600a': { h_evap: 360000, density_liq: 550,  density_vapor: 18,  viscosity_liq: 0.00018, viscosity_vapor: 0.000007 }
-    };
-
+    
+    const appData = TOOL_CONSTANTS.appData;
+    const refrigerantProps = TOOL_CONSTANTS.refrigerantPropsGlobal;
+    const finTypes = TOOL_CONSTANTS.finTypes;
+    const coilTypes = TOOL_CONSTANTS.coilTypes;
+    
     const diameterOptions = [0.25, 0.3125, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0];
     const diamLabels = {0.25:'1/4"', 0.3125:'5/16"', 0.375:'3/8"', 0.5:'1/2"', 0.625:'5/8"', 0.75:'3/4"', 0.875:'7/8"', 1.0:'1"'};
-
-    const finTypes = {
-        'بدون زعانف': { area_mult: 1.0, eta: 1.0, blockage_factor: 0.95 },
-        'زعانف عادية (20 فِن/بوصة)': { area_mult: 18, eta: 0.85, blockage_factor: 0.70 },
-        'زعانف كثيفة (30 فِن/بوصة)': { area_mult: 24, eta: 0.80, blockage_factor: 0.65 }
-    };
-
-    const coilTypes = {
-        inline: { name: 'مصفوفة (Inline)', factor: 1.0 },
-        staggered: { name: 'متداخلة (Staggered)', factor: 1.15 }
-    };
-
-    // ========== دالة تقدير COP ديناميكي ==========
-    function estimateCOP(evapTemp, condTemp, appKey) {
-        const Te = evapTemp + 273.15;
-        const Tc = condTemp + 273.15;
-        const carnot = Te / (Tc - Te);
-        let factor = 0.5;
-        if (appKey === 'freezer') factor = 0.4;
-        if (appKey === 'cooler') factor = 0.45;
-        return Math.max(1.0, carnot * factor);
-    }
-
-    // ========== دالة حساب فقد الضغط (معتمدة على Reynolds) ==========
-    function pressureDropPsi(length_m, velocity_mps, diameter_in, density_kg_m3, viscosity_pa_s) {
-        const D = diameter_in * 0.0254;
-        if (D <= 0 || velocity_mps <= 0 || length_m <= 0) return 0;
-        const Re = (density_kg_m3 * velocity_mps * D) / viscosity_pa_s;
-        let f;
-        if (Re < 2300) {
-            f = 64 / Math.max(Re, 1);
-        } else {
-            f = 0.316 / Math.pow(Re, 0.25);
-        }
-        f = Math.min(f, 0.1);
-        const dp = f * (length_m / D) * (density_kg_m3 * velocity_mps * velocity_mps / 2);
-        return dp / 6894.76;
-    }
-
-    // ========== دوال LMTD ==========
-    function LMTD_evap(t_air_in, t_air_out, t_ref_evap) {
-        let dT1 = t_air_in - t_ref_evap;
-        let dT2 = t_air_out - t_ref_evap;
-        if (dT1 <= 0.1) dT1 = 0.1;
-        if (dT2 <= 0.1) dT2 = 0.1;
-        if (Math.abs(dT1 - dT2) < 0.1) return dT1;
-        return (dT1 - dT2) / Math.log(dT1 / dT2);
-    }
-
-    function LMTD_cond(t_ref_cond, t_air_in, t_air_out) {
-        let dT1 = t_ref_cond - t_air_in;
-        let dT2 = t_ref_cond - t_air_out;
-        if (dT1 <= 0.1) dT1 = 0.1;
-        if (dT2 <= 0.1) dT2 = 0.1;
-        if (Math.abs(dT1 - dT2) < 0.1) return dT1;
-        return (dT1 - dT2) / Math.log(dT1 / dT2);
-    }
-
-    // ========== معامل انتقال حرارة الهواء مع السرعة الفعلية ==========
-    function h_air_from_velocity(vel_m_s, type, blockage_factor) {
-        let base = (type === 'cond') ? 15 : 10;
-        let effectiveVel = vel_m_s / (blockage_factor || 0.9);
-        effectiveVel = Math.min(effectiveVel, 8);
-        return base + 12 * Math.pow(effectiveVel, 0.8);
-    }
-
-    function h_ref_coeff(type, refrigerant) {
-        return type === 'evap' ? 1200 : 2000;
-    }
-
-    // ========== حساب معامل انتقال الحرارة الكلي U ==========
-    function calculate_U(h_air, h_ref, fin_eta, area_mult, d_tube_m, coilFactor = 1.0) {
-        const t_wall = 0.0008;
-        const k_cu = 380;
-        const r_i = d_tube_m / 2;
-        const r_o = r_i + t_wall;
-        const R_tube = Math.log(r_o / r_i) / (2 * Math.PI * k_cu);
-        const effective_area_ratio = 1 + fin_eta * (area_mult - 1);
-        const R_air = 1 / (h_air * effective_area_ratio);
-        const R_ref = 1 / h_ref;
-        let U = 1 / (R_air + R_tube + R_ref);
-        U = U * coilFactor;
-        if (area_mult > 20) U *= 1.1;
-        U = Math.min(U, 250);
-        U = Math.max(U, 5);
-        return U;
-    }
-
-    function convertPowerToWatt(value, unit) {
-        if (unit === 'hp') return value * 745.7;
-        if (unit === 'btu') return value * 0.293071;
-        return value;
-    }
-
-    // ========== تدفق الهواء مع مراعاة الرطوبة ==========
-    function airflow_cfm_from_load(watt_load, t_air_in, t_air_out, humidity_fraction = 0.5) {
-        let deltaT = Math.abs(t_air_out - t_air_in);
-        if (deltaT < 1) deltaT = 1;
-        const cp_air = 1005 + (humidity_fraction * 1860);
-        let m_dot_air = watt_load / (cp_air * deltaT);
-        let vol_flow = m_dot_air / 1.2;
-        return Math.max(vol_flow * 2118.88, 50);
-    }
-
-    // ========== الوضع المتقدم (بدون تحذيرات طولية) ==========
+    
     function advancedDesign(power_watt, appKey, refrigerant, evapTemp, condTemp, airVelocity, finTypeKey, d_evap_in, d_cond_in, humidity, coilTypeKey) {
         const app = appData[appKey];
         const refData = refrigerantProps[refrigerant];
         const fin = finTypes[finTypeKey] || finTypes['زعانف عادية (20 فِن/بوصة)'];
         const coilFactor = coilTypes[coilTypeKey]?.factor || 1.0;
         if (!app || !refData) return null;
-
+        
         const dynamicCOP = estimateCOP(evapTemp, condTemp, appKey);
         const Q_evap = power_watt;
         const Q_cond = Q_evap * (1 + 1/dynamicCOP);
-
+        
         let deltaT_air_evap = (appKey === 'ac' ? 10 : (appKey === 'cooler' ? 5 : 4));
         let t_air_out_evap = app.t_air_in_evap - deltaT_air_evap;
         let deltaT_air_cond = (appKey === 'ac' ? 12 : (appKey === 'cooler' ? 8 : 6));
         let t_air_out_cond = app.t_air_in_cond + deltaT_air_cond;
-
+        
         let LMTD_evap_val = LMTD_evap(app.t_air_in_evap, t_air_out_evap, evapTemp);
         let LMTD_cond_val = LMTD_cond(condTemp, app.t_air_in_cond, t_air_out_cond);
-
+        
         let h_air_evap = h_air_from_velocity(airVelocity, 'evap', fin.blockage_factor);
         let h_air_cond = h_air_from_velocity(airVelocity, 'cond', fin.blockage_factor);
         let h_ref_evap = h_ref_coeff('evap', refrigerant);
         let h_ref_cond = h_ref_coeff('cond', refrigerant);
-
+        
         let d_evap_m = d_evap_in * 0.0254;
         let d_cond_m = d_cond_in * 0.0254;
-
+        
         let U_evap = calculate_U(h_air_evap, h_ref_evap, fin.eta, fin.area_mult, d_evap_m, coilFactor);
         let U_cond = calculate_U(h_air_cond, h_ref_cond, fin.eta, fin.area_mult, d_cond_m, coilFactor);
-
+        
         let A_evap_req = Q_evap / (U_evap * LMTD_evap_val);
         let A_cond_req = Q_cond / (U_cond * LMTD_cond_val);
-
+        
         let A_tube_evap = A_evap_req / fin.area_mult;
         let A_tube_cond = A_cond_req / fin.area_mult;
-
+        
         let lengthEvap = A_tube_evap / (Math.PI * d_evap_m) * 1.10;
         let lengthCond = A_tube_cond / (Math.PI * d_cond_m) * 1.10;
-
+        
         const superheat = 5;
         const subcool = 5;
         let correction = 1 + (superheat * 0.01) - (subcool * 0.005);
         let m_dot_ref = (Q_evap / refData.h_evap) * correction;
-
+        
         let A_cross_evap = Math.PI * d_evap_m * d_evap_m / 4;
         let A_cross_cond = Math.PI * d_cond_m * d_cond_m / 4;
         
@@ -1649,25 +1047,24 @@ else if (toolId === 'room') {
         
         vel_ref_evap = Math.min(vel_ref_evap, 10);
         vel_ref_cond = Math.min(vel_ref_cond, 10);
-
+        
         let dp_evap_psi = pressureDropPsi(lengthEvap, vel_ref_evap, d_evap_in, refData.density_vapor, refData.viscosity_vapor || 0.000012);
         let dp_cond_psi = pressureDropPsi(lengthCond, vel_ref_cond, d_cond_in, density_mix, refData.viscosity_liq);
-
+        
         let cfm_evap = airflow_cfm_from_load(Q_evap, app.t_air_in_evap, t_air_out_evap, humidity);
         let cfm_cond = airflow_cfm_from_load(Q_cond, app.t_air_in_cond, t_air_out_cond, humidity);
-
-        const aspectRatio = 1.5;
+        
         let face_area_evap_m2 = (cfm_evap / 2118.88) / airVelocity;
         let face_area_cond_m2 = (cfm_cond / 2118.88) / airVelocity;
         
-        let width_evap = Math.sqrt(face_area_evap_m2 * aspectRatio);
+        let width_evap = Math.sqrt(face_area_evap_m2 * 1.5);
         let height_evap = face_area_evap_m2 / width_evap;
-        let width_cond = Math.sqrt(face_area_cond_m2 * aspectRatio);
+        let width_cond = Math.sqrt(face_area_cond_m2 * 1.5);
         let height_cond = face_area_cond_m2 / width_cond;
-
+        
         let realFaceVelEvap = cfm_evap / (face_area_evap_m2 * 2118.88);
         let realFaceVelCond = cfm_cond / (face_area_cond_m2 * 2118.88);
-
+        
         const pitch = 0.03;
         let numberOfRowsEvap = Math.max(1, Math.floor(height_evap / pitch));
         let numberOfRowsCond = Math.max(1, Math.floor(height_cond / pitch));
@@ -1677,18 +1074,10 @@ else if (toolId === 'room') {
         let turnsCond = (lengthCond / (width_cond * numberOfRowsCond)) / bend_factor;
         turnsEvap = Math.min(Math.max(turnsEvap, 2), 30);
         turnsCond = Math.min(Math.max(turnsCond, 2), 30);
-
-        // التحذيرات (بدون أي تحذير بخصوص الطول الكبير)
+        
         let warnings = [];
         if (LMTD_evap_val < 5) warnings.push(' LMTD المبخر منخفض جداً (<5)');
         if (LMTD_cond_val < 5) warnings.push(' LMTD المكثف منخفض جداً');
-        let dT1_evap = app.t_air_in_evap - evapTemp;
-        let dT2_evap = t_air_out_evap - evapTemp;
-        if (dT1_evap < 2 || dT2_evap < 2) warnings.push(' فرق درجات حرارة المبخر ضعيف جداً');
-        let dT1_cond = condTemp - app.t_air_in_cond;
-        let dT2_cond = condTemp - t_air_out_cond;
-        if (dT1_cond < 2 || dT2_cond < 2) warnings.push('فرق درجات حرارة المكثف ضعيف جداً');
-        
         if (vel_ref_evap < 2) warnings.push('سرعة فريون (بخار) منخفضة - خطر عدم رجوع الزيت');
         if (vel_ref_evap > 8) warnings.push('سرعة فريون عالية - فقد ضغط وتآكل');
         if (airVelocity < 1.2) warnings.push(' سرعة هواء منخفضة جداً');
@@ -1697,11 +1086,9 @@ else if (toolId === 'room') {
         if (U_cond < 40) warnings.push(' انتقال حراري ضعيف في المكثف (U منخفض)');
         if (dp_evap_psi > 5) warnings.push(` فقد ضغط المبخر عالي (${dp_evap_psi.toFixed(2)} psi)`);
         if (dp_cond_psi > 5) warnings.push(` فقد ضغط المكثف عالي (${dp_cond_psi.toFixed(2)} psi)`);
-        if (realFaceVelEvap > 3) warnings.push(` Face velocity للمبخر عالي (${realFaceVelEvap.toFixed(1)} م/ث)`);
-        if (realFaceVelCond > 3) warnings.push(` Face velocity للمكثف عالي (${realFaceVelCond.toFixed(1)} م/ث)`);
         
         const warningText = warnings.length ? warnings.join(' | ') : ' جميع القيم ضمن النطاق المنطقي';
-
+        
         return {
             mode: 'متقدم (LMTD + U حقيقي + COP ديناميكي + فقد ضغط)',
             app_name: app.name,
@@ -1748,19 +1135,21 @@ else if (toolId === 'room') {
             warnings: warningText
         };
     }
-
-    // ========== الوضع السريع (محسن) ==========
+    
     function quickDesign(power_watt, appKey, refrigerant, evapTemp, condTemp, airVelocity, finTypeKey, d_evap_in, d_cond_in, humidity, coilTypeKey) {
         const app = appData[appKey];
         const refData = refrigerantProps[refrigerant];
         if (!app || !refData) return null;
+        
         const dynamicCOP = estimateCOP(evapTemp, condTemp, appKey);
         let Q_evap = power_watt;
         let Q_cond = Q_evap * (1 + 1/dynamicCOP);
+        
         let dtEvap = app.t_air_in_evap - evapTemp;
         let dtCond = condTemp - app.t_air_in_cond;
         if (dtEvap < 1) dtEvap = 1;
         if (dtCond < 1) dtCond = 1;
+        
         let fin = finTypes[finTypeKey];
         const coilFactor = coilTypes[coilTypeKey]?.factor || 1.0;
         
@@ -1775,10 +1164,13 @@ else if (toolId === 'room') {
         
         let A_evap = Q_evap / (U_evap_base * dtEvap);
         let A_cond = Q_cond / (U_cond_base * dtCond);
+        
         let d_evap_m = d_evap_in * 0.0254;
         let d_cond_m = d_cond_in * 0.0254;
+        
         let lengthEvap = A_evap / (Math.PI * d_evap_m) * 1.15;
         let lengthCond = A_cond / (Math.PI * d_cond_m) * 1.15;
+        
         return {
             mode: 'سريع (تقديري مع COP ديناميكي)',
             app_name: app.name,
@@ -1789,8 +1181,7 @@ else if (toolId === 'room') {
             warnings: 'نتائج تقريبية، يفضل استخدام الوضع المتقدم للدقة'
         };
     }
-
-    // ========== دالة الحساب الرئيسية ==========
+    
     const calculateCoils = () => {
         try {
             const powerVal = parseFloat(document.getElementById('ec_power_value')?.value);
@@ -1806,22 +1197,24 @@ else if (toolId === 'room') {
             const mode = document.getElementById('ec_mode')?.value === 'advanced' ? 'advanced' : 'quick';
             const humidity = parseFloat(document.getElementById('ec_humidity')?.value || 50) / 100;
             const coilType = document.getElementById('ec_coil_type')?.value || 'staggered';
-
+            
             if (isNaN(powerVal) || powerVal <= 0 || !app || !refrigerant || isNaN(airVelocity) || isNaN(evapTemp) || isNaN(condTemp)) {
                 showToast('يرجى إدخال جميع القيم بشكل صحيح', 'warning');
                 return;
             }
-            const powerWatt = convertPowerToWatt(powerVal, powerUnit);
+            
+            const powerWatt = convertPower(powerVal, powerUnit).watt;
             if (powerWatt <= 0) throw new Error('قدرة غير صالحة');
-
+            
             let result;
             if (mode === 'advanced') {
                 result = advancedDesign(powerWatt, app, refrigerant, evapTemp, condTemp, airVelocity, finType, d_evap_in, d_cond_in, humidity, coilType);
             } else {
                 result = quickDesign(powerWatt, app, refrigerant, evapTemp, condTemp, airVelocity, finType, d_evap_in, d_cond_in, humidity, coilType);
             }
+            
             if (!result) throw new Error('فشل في الحساب');
-
+            
             let displayObj = {
                 ' وضع الحساب': result.mode,
                 'نوع التطبيق': result.app_name,
@@ -1863,11 +1256,11 @@ else if (toolId === 'room') {
             showToast('خطأ في الحساب: ' + err.message, 'error');
         }
     };
-
-    // ========== بناء واجهة المستخدم ==========
+    
     const refrigerantOptions = Object.keys(refrigerantProps).map(r => `<option value="${r}">${r}</option>`).join('');
     const finOptions = Object.keys(finTypes).map(f => `<option value="${f}">${f}</option>`).join('');
     const coilOptions = Object.keys(coilTypes).map(c => `<option value="${c}">${coilTypes[c].name}</option>`).join('');
+    
     const buildDiameterSelect = (id, defaultValue) => {
         let html = `<select id="${id}" style="width:100%;">`;
         for (let d of diameterOptions) {
@@ -1877,115 +1270,111 @@ else if (toolId === 'room') {
         html += `</select>`;
         return html;
     };
-
+    
     setContent(`
-<div class="flex flex-col gap-4" dir="rtl">
-    <div class="flex flex-wrap gap-3">
-        <div class="flex-1 min-w-[180px]">
-            <label class="block mb-1 text-sm font-semibold">وضع الحساب</label>
-            <select id="ec_mode" style="width:100%;">
-                <option value="quick"> سريع (تقديري)</option>
-                <option value="advanced" selected> متقدم (LMTD + U حقيقي)</option>
-            </select>
+        <div class="flex flex-col gap-4" dir="rtl">
+            <div class="flex flex-wrap gap-3">
+                <div class="flex-1 min-w-[180px]">
+                    <label class="block mb-1 text-sm font-semibold">وضع الحساب</label>
+                    <select id="ec_mode" style="width:100%;">
+                        <option value="quick"> سريع (تقديري)</option>
+                        <option value="advanced" selected> متقدم (LMTD + U حقيقي)</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block mb-1 text-sm font-semibold">نوع الكويل</label>
+                    <select id="ec_coil_type" style="width:100%;">${coilOptions}</select>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block mb-1 text-sm font-semibold">نوع التطبيق</label>
+                    <select id="ec_app" style="width:100%;">
+                        <option value="ac"> تكييف عادي</option>
+                        <option value="cooler"> غرفة تبريد</option>
+                        <option value="freezer"> غرفة تجميد</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block mb-1 text-sm font-semibold">نوع الفريون</label>
+                    <select id="ec_refrigerant" style="width:100%;">${refrigerantOptions}</select>
+                </div>
+            </div>
+            <div>
+                <label class="block mb-1 text-sm font-semibold">القدرة</label>
+                <div class="flex gap-2">
+                    <input type="number" step="any" id="ec_power_value" value="1.5" style="flex:2;">
+                    <select id="ec_power_unit" style="flex:1;">
+                        <option value="hp">حصان (HP)</option>
+                        <option value="btu">BTU/h</option>
+                        <option value="watt">واط</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <div class="flex-1">
+                    <label class="block mb-1 text-sm font-semibold">حرارة التبخير (°C)</label>
+                    <input type="number" step="any" id="ec_evap_temp" value="7" style="width:100%;">
+                </div>
+                <div class="flex-1">
+                    <label class="block mb-1 text-sm font-semibold">حرارة التكثيف (°C)</label>
+                    <input type="number" step="any" id="ec_cond_temp" value="50" style="width:100%;">
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <div class="flex-1">
+                    <label class="block mb-1 text-sm font-semibold">قطر المبخر (بوصة)</label>
+                    ${buildDiameterSelect('ec_d_evap', 0.375)}
+                </div>
+                <div class="flex-1">
+                    <label class="block mb-1 text-sm font-semibold">قطر المكثف (بوصة)</label>
+                    ${buildDiameterSelect('ec_d_cond', 0.5)}
+                </div>
+            </div>
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block mb-1 text-sm font-semibold">نوع الزعانف</label>
+                    <select id="ec_fin_type" style="width:100%;">${finOptions}</select>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <div class="flex-1">
+                        <label class="block mb-1 text-sm font-semibold">سرعة الهواء (م/ث)</label>
+                        <input type="number" step="0.1" id="ec_air_vel" value="2.5" style="width:100%;">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block mb-1 text-sm font-semibold">الرطوبة (%)</label>
+                        <input type="number" step="1" id="ec_humidity" value="50" style="width:100%;">
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="flex-1 min-w-[150px]">
-            <label class="block mb-1 text-sm font-semibold">نوع الكويل</label>
-            <select id="ec_coil_type" style="width:100%;">${coilOptions}</select>
-        </div>
-    </div>
-    <div class="flex flex-wrap gap-3">
-        <div class="flex-1 min-w-[150px]">
-            <label class="block mb-1 text-sm font-semibold">نوع التطبيق</label>
-            <select id="ec_app" style="width:100%;">
-                <option value="ac"> تكييف عادي</option>
-                <option value="cooler"> غرفة تبريد</option>
-                <option value="freezer"> غرفة تجميد</option>
-            </select>
-        </div>
-        <div class="flex-1 min-w-[150px]">
-            <label class="block mb-1 text-sm font-semibold">نوع الفريون</label>
-            <select id="ec_refrigerant" style="width:100%;">${refrigerantOptions}</select>
-        </div>
-    </div>
-    <div>
-        <label class="block mb-1 text-sm font-semibold">القدرة</label>
-        <div class="flex gap-2">
-            <input type="number" step="any" id="ec_power_value" value="1.5" style="flex:2;">
-            <select id="ec_power_unit" style="flex:1;">
-                <option value="hp">حصان (HP)</option>
-                <option value="btu">BTU/h</option>
-                <option value="watt">واط</option>
-            </select>
-        </div>
-    </div>
-    <div class="flex flex-wrap gap-3">
-        <div class="flex-1">
-            <label class="block mb-1 text-sm font-semibold">حرارة التبخير (°C)</label>
-            <input type="number" step="any" id="ec_evap_temp" value="7" style="width:100%;">
-        </div>
-        <div class="flex-1">
-            <label class="block mb-1 text-sm font-semibold">حرارة التكثيف (°C)</label>
-            <input type="number" step="any" id="ec_cond_temp" value="50" style="width:100%;">
-        </div>
-    </div>
-    <div class="flex flex-wrap gap-3">
-        <div class="flex-1">
-            <label class="block mb-1 text-sm font-semibold">قطر المبخر (بوصة)</label>
-            ${buildDiameterSelect('ec_d_evap', 0.375)}
-        </div>
-        <div class="flex-1">
-            <label class="block mb-1 text-sm font-semibold">قطر المكثف (بوصة)</label>
-            ${buildDiameterSelect('ec_d_cond', 0.5)}
-        </div>
-    </div>
-    <div class="flex flex-col gap-4">
-    <!-- السطر الأول: نوع الزعانف فقط -->
-    <div>
-        <label class="block mb-1 text-sm font-semibold">نوع الزعانف</label>
-        <select id="ec_fin_type" style="width:100%;">${finOptions}</select>
-    </div>
-
-    <!-- السطر الثاني: مربعا الإدخال متجاورين -->
-    <div class="flex flex-wrap gap-3">
-        <div class="flex-1">
-            <label class="block mb-1 text-sm font-semibold">سرعة الهواء (م/ث)</label>
-            <input type="number" step="0.1" id="ec_air_vel" value="2.5" style="width:100%;">
-        </div>
-        <div class="flex-1">
-            <label class="block mb-1 text-sm font-semibold">الرطوبة (%)</label>
-            <input type="number" step="1" id="ec_humidity" value="50" style="width:100%;">
-        </div>
-    </div>
-</div>
-</div>
     `);
-
-    // ========== ربط الأحداث ==========
+    
     const appSelect = document.getElementById('ec_app');
-    const updateDefaults = () => {
-        const app = appSelect?.value;
-        const def = appData[app];
-        if (def) {
-            const evapInput = document.getElementById('ec_evap_temp');
-            const condInput = document.getElementById('ec_cond_temp');
-            const velInput = document.getElementById('ec_air_vel');
-            if (evapInput && !evapInput._userChanged) evapInput.value = def.default_evap_temp;
-            if (condInput && !condInput._userChanged) condInput.value = def.default_cond_temp;
-            if (velInput && !velInput._userChanged) velInput.value = def.default_air_vel;
-            clearResult();
-        }
-    };
     if (appSelect) {
         const evapInput = document.getElementById('ec_evap_temp');
         const condInput = document.getElementById('ec_cond_temp');
         const velInput = document.getElementById('ec_air_vel');
+        
+        const updateDefaults = () => {
+            const app = appSelect.value;
+            const def = appData[app];
+            if (def) {
+                if (evapInput && !evapInput._userChanged) evapInput.value = def.default_evap_temp;
+                if (condInput && !condInput._userChanged) condInput.value = def.default_cond_temp;
+                if (velInput && !velInput._userChanged) velInput.value = def.default_air_vel;
+                clearResult();
+            }
+        };
+        
         if (evapInput) evapInput.addEventListener('input', () => { evapInput._userChanged = true; });
         if (condInput) condInput.addEventListener('input', () => { condInput._userChanged = true; });
         if (velInput) velInput.addEventListener('input', () => { velInput._userChanged = true; });
+        
         appSelect.addEventListener('change', updateDefaults);
         updateDefaults();
     }
-
+    
     const bindInputs = () => {
         const inputs = ['ec_power_value', 'ec_power_unit', 'ec_app', 'ec_refrigerant', 'ec_d_evap', 'ec_d_cond', 'ec_fin_type', 'ec_air_vel', 'ec_evap_temp', 'ec_cond_temp', 'ec_mode', 'ec_humidity', 'ec_coil_type'];
         inputs.forEach(id => {
@@ -1998,7 +1387,7 @@ else if (toolId === 'room') {
     };
     bindInputs();
     setTimeout(bindInputs, 100);
-
+    
     const existingBtn = document.getElementById('calculateBtn');
     if (existingBtn) {
         const newBtn = existingBtn.cloneNode(true);
@@ -2025,14 +1414,14 @@ else if (toolId === 'room') {
         observer.observe(document.body, { childList: true, subtree: true });
         setTimeout(() => observer.disconnect(), 2000);
     }
+    return;
 }
-    
-    // ================= أداة حساس NTC =================
-    else if (toolId === 'ntc') {
+
+
+else if (toolId === 'ntc') {
     title.innerText = ' حساس NTC ';
     const ntcTypes = TOOL_CONSTANTS.ntc.types;
     
-    // دالة محسنة لعرض المقاومة بمقادير مناسبة
     function formatResistance(r) {
         if (r >= 1e6) return (r / 1e6).toFixed(2) + ' MΩ';
         if (r >= 1e3) return (r / 1e3).toFixed(2) + ' kΩ';
@@ -2041,7 +1430,6 @@ else if (toolId === 'room') {
         return r.toFixed(2) + ' Ω';
     }
     
-    // إضافة دالة Steinhart-Hart
     function steinhartHart(R, A, B, C) {
         const lnR = Math.log(R);
         const invT = A + B * lnR + C * Math.pow(lnR, 3);
@@ -2075,7 +1463,6 @@ else if (toolId === 'room') {
         const isCustom = (type === 'custom');
         const equation = document.getElementById('ntc_equation').value;
         
-        // إخفاء كل أقسام المخصص أولا
         const customBetaDiv = document.getElementById('ntc_custom_beta');
         const customSteinhartDiv = document.getElementById('ntc_custom_steinhart');
         if (customBetaDiv) customBetaDiv.style.display = 'none';
@@ -2091,21 +1478,19 @@ else if (toolId === 'room') {
         clearResult();
     };
     
-    // إضافة مستمع لتغيير المعادلة لتحديث الحقول المخصصة
     ToolHelpers.updateCustomFieldsOnEquation = function() {
         ToolHelpers.ntcToggleCustom();
     };
     
     ToolHelpers.computeNtc = function() {
         const type = document.getElementById('ntc_type').value;
-        const equation = document.getElementById('ntc_equation').value; // 'beta' or 'steinhart'
+        const equation = document.getElementById('ntc_equation').value;
         let R0, B, T0 = 25;
-        let A, B_sh, C; // for Steinhart-Hart
+        let A, B_sh, C;
         let useSteinhart = (equation === 'steinhart');
         
         if (type === 'custom') {
             if (useSteinhart) {
-                // قراءة معاملات Steinhart-Hart من الحقول المخصصة
                 A = parseFloat(document.getElementById('ntc_a').value);
                 B_sh = parseFloat(document.getElementById('ntc_b_sh').value);
                 C = parseFloat(document.getElementById('ntc_c').value);
@@ -2113,17 +1498,15 @@ else if (toolId === 'room') {
                     showToast('معاملات Steinhart-Hart غير صحيحة', 'warning');
                     return;
                 }
-                // نحتاج أيضاً R0 و T0 لاستخدامهما في الاتجاه العكسي (مقاومة من حرارة) حيث نستخدم Beta احتياطياً
                 T0 = parseFloat(document.getElementById('ntc_t0').value);
                 R0 = parseFloat(document.getElementById('ntc_r0').value);
                 if (!isFinite(T0) || !isFinite(R0) || R0 <= 0) {
                     showToast('القيم المرجعية (R0, T0) غير صحيحة', 'warning');
                     return;
                 }
-                B = parseFloat(document.getElementById('ntc_b').value); // قد لا يستخدم في Steinhart ولكن نحتاجه للاتجاه العكسي
-                if (!isFinite(B)) B = 3950; // قيمة افتراضية
+                B = parseFloat(document.getElementById('ntc_b').value);
+                if (!isFinite(B)) B = 3950;
             } else {
-                // قراءة معاملات Beta
                 T0 = parseFloat(document.getElementById('ntc_t0').value);
                 R0 = parseFloat(document.getElementById('ntc_r0').value);
                 B = parseFloat(document.getElementById('ntc_b').value);
@@ -2131,14 +1514,12 @@ else if (toolId === 'room') {
                     showToast('القيم المخصصة لمعادلة Beta غير صحيحة', 'warning');
                     return;
                 }
-                // تعيين معاملات Steinhart-Hart افتراضية (لن تستخدم)
                 A = 1.129241e-3; B_sh = 2.341077e-4; C = 8.767411e-8;
             }
         } else {
             const t = ntcTypes[type];
             R0 = t.R0;
             B = t.B;
-            // قيم تقريبية لـ Steinhart-Hart للأنواع الشائعة
             if (type === '10k_3950') {
                 A = 1.129241e-3; B_sh = 2.341077e-4; C = 8.767411e-8;
             } else if (type === '5k_3470') {
@@ -2148,7 +1529,7 @@ else if (toolId === 'room') {
             } else {
                 A = 1.0e-3; B_sh = 2.5e-4; C = 1.0e-7;
             }
-            T0 = 25; // القيمة المرجعية ثابتة للأنواع المدمجة
+            T0 = 25;
         }
         
         const T0K = T0 + 273.15;
@@ -2198,16 +1579,14 @@ else if (toolId === 'room') {
                 result['تشخيص'] = ' القراءة ضمن المدى الطبيعي';
             }
             
-        } else { // res_from_temp
+        } else {
             const t = parseFloat(document.getElementById('ntc_t').value);
             if (!isFinite(t)) {
                 showToast('أدخل درجة حرارة صحيحة', 'warning');
                 return;
             }
             
-            let r;
-            // استخدام معادلة Beta للاتجاه العكسي (أسهل وأسرع)
-            r = R0 * Math.exp(B * (1 / (t + 273.15) - 1 / T0K));
+            let r = R0 * Math.exp(B * (1 / (t + 273.15) - 1 / T0K));
             
             if (!isFinite(r) || isNaN(r)) {
                 showToast('نتيجة غير منطقية (تأكد من المدخلات)', 'error');
@@ -2255,7 +1634,6 @@ else if (toolId === 'room') {
             <input type="number" step="any" id="ntc_t" value="25">
         </div>
         
-        <!-- قسم المخصص لمعادلة Beta -->
         <div id="ntc_custom_beta" style="display:none;">
             <div style="margin-top:12px; padding:8px; background:#f9f9f9; border-radius:6px;">
                 <label style="font-weight:bold;"> معادلة Beta (β)</label>
@@ -2268,7 +1646,6 @@ else if (toolId === 'room') {
             </div>
         </div>
         
-        <!-- قسم المخصص لمعادلة Steinhart-Hart -->
         <div id="ntc_custom_steinhart" style="display:none;">
             <div style="margin-top:12px; padding:8px; background:#f9f9f9; border-radius:6px;">
                 <label style="font-weight:bold;"> معادلة Steinhart-Hart</label>
@@ -2285,7 +1662,6 @@ else if (toolId === 'room') {
         </div>
     `, ToolHelpers.computeNtc);
     
-    // ربط مستمع لتغيير نوع المعادلة
     const equationSelect = document.getElementById('ntc_equation');
     if (equationSelect) {
         equationSelect.addEventListener('change', function() {
@@ -2293,76 +1669,70 @@ else if (toolId === 'room') {
         });
     }
     
-    // الإعداد الأولي
     setTimeout(() => { 
         ToolHelpers.ntcToggleCustom();
-        // إضافة حقل R0 المخفي لاستخدامه في كلا القسمين (لضمان وجوده)
-        if (!document.getElementById('ntc_r0')) {
-            // في حالة عدم وجوده (لن يحدث)، لكن نضمن وجوده
+    }, 50);
+    return;
+}
+
+else if (toolId === 'ptcalc') {
+    title.innerText = ' حاسبة P-T';
+    const refrigerantOptions = Object.keys(refPTData).map(r => `<option value="${r}">${r}</option>`).join('');
+    setContent(`
+        <label>نوع الحساب</label>
+        <select id="pt_mode">
+            <option value="t2p">درجة الحرارة → الضغط</option>
+            <option value="p2t">الضغط → درجة الحرارة</option>
+        </select>
+        <label>الفريون</label>
+        <select id="pt_ref">${refrigerantOptions}</select>
+        <div id="pt_input_area">
+            <label>درجة الحرارة (°C)</label>
+            <input type="number" step="any" id="pt_t" value="5">
+        </div>
+    `, () => {
+        const mode = document.getElementById('pt_mode').value;
+        const refrigerant = document.getElementById('pt_ref').value;
+        const data = refPTData[refrigerant];
+        if (!data) { showToast('لا توجد بيانات لهذا الفريون', 'warning'); return; }
+        if (mode === 't2p') {
+            const t = parseFloat(document.getElementById('pt_t').value);
+            if (isNaN(t)) { showToast('أدخل درجة حرارة صحيحة', 'warning'); return; }
+            const p = interpolatePressure(data, t);
+            showFullRes('الضغط مقابل الحرارة', { 'الفريون': refrigerant, 'درجة الحرارة': t + ' °C', 'ضغط التشبع': p.toFixed(1) + ' PSI' });
+        } else {
+            const p = parseFloat(document.getElementById('pt_p').value);
+            if (isNaN(p)) { showToast('أدخل ضغط صحيح', 'warning'); return; }
+            const t = interpolateTemp(data, p);
+            showFullRes('الحرارة مقابل الضغط', { 'الفريون': refrigerant, 'الضغط': p + ' PSI', 'درجة الحرارة': t.toFixed(1) + ' °C' });
+        }
+    });
+    setTimeout(() => {
+        const modeSelect = document.getElementById('pt_mode');
+        const inputArea = document.getElementById('pt_input_area');
+        const updatePTInputs = () => {
+            if (modeSelect.value === 't2p') inputArea.innerHTML = `<label>درجة الحرارة (°C)</label><input type="number" step="any" id="pt_t" value="5">`;
+            else inputArea.innerHTML = `<label>الضغط (PSI)</label><input type="number" step="any" id="pt_p" value="60">`;
+            clearResult();
+            const newInput = inputArea.querySelector('input');
+            if (newInput) {
+                newInput.addEventListener('change', clearResult);
+                newInput.addEventListener('input', clearResult);
+            }
+        };
+        modeSelect.addEventListener('change', updatePTInputs);
+        const currentInput = inputArea.querySelector('input');
+        if (currentInput) {
+            currentInput.addEventListener('change', clearResult);
+            currentInput.addEventListener('input', clearResult);
         }
     }, 50);
+    return;
 }
-    
-    // ================= أداة PT =================
-    else if (toolId === 'ptcalc') {
-        title.innerText = ' حاسبة P-T';
-        const refrigerantOptions = Object.keys(refPTData).map(r => `<option value="${r}">${r}</option>`).join('');
-        setContent(`
-            <label>نوع الحساب</label>
-            <select id="pt_mode">
-                <option value="t2p">درجة الحرارة → الضغط</option>
-                <option value="p2t">الضغط → درجة الحرارة</option>
-            </select>
-            <label>الفريون</label>
-            <select id="pt_ref">${refrigerantOptions}</select>
-            <div id="pt_input_area">
-                <label>درجة الحرارة (°C)</label>
-                <input type="number" step="any" id="pt_t" value="5">
-            </div>
-        `, () => {
-            const mode = document.getElementById('pt_mode').value;
-            const refrigerant = document.getElementById('pt_ref').value;
-            const data = refPTData[refrigerant];
-            if (!data) { showToast('لا توجد بيانات لهذا الفريون', 'warning'); return; }
-            if (mode === 't2p') {
-                const t = parseFloat(document.getElementById('pt_t').value);
-                if (isNaN(t)) { showToast('أدخل درجة حرارة صحيحة', 'warning'); return; }
-                const p = interpolatePressure(data, t);
-                showFullRes('الضغط مقابل الحرارة', { 'الفريون': refrigerant, 'درجة الحرارة': t + ' °C', 'ضغط التشبع': p.toFixed(1) + ' PSI' });
-            } else {
-                const p = parseFloat(document.getElementById('pt_p').value);
-                if (isNaN(p)) { showToast('أدخل ضغط صحيح', 'warning'); return; }
-                const t = interpolateTemp(data, p);
-                showFullRes('الحرارة مقابل الضغط', { 'الفريون': refrigerant, 'الضغط': p + ' PSI', 'درجة الحرارة': t.toFixed(1) + ' °C' });
-            }
-        });
-        setTimeout(() => {
-            const modeSelect = document.getElementById('pt_mode');
-            const inputArea = document.getElementById('pt_input_area');
-            const updatePTInputs = () => {
-                if (modeSelect.value === 't2p') inputArea.innerHTML = `<label>درجة الحرارة (°C)</label><input type="number" step="any" id="pt_t" value="5">`;
-                else inputArea.innerHTML = `<label>الضغط (PSI)</label><input type="number" step="any" id="pt_p" value="60">`;
-                clearResult();
-                const newInput = inputArea.querySelector('input');
-                if (newInput) {
-                    newInput.addEventListener('change', clearResult);
-                    newInput.addEventListener('input', clearResult);
-                }
-            };
-            modeSelect.addEventListener('change', updatePTInputs);
-            const currentInput = inputArea.querySelector('input');
-            if (currentInput) {
-                currentInput.addEventListener('change', clearResult);
-                currentInput.addEventListener('input', clearResult);
-            }
-        }, 50);
-    }
-    
-    // ================= أداة Superheat/Subcool =================
-else if(toolId === 'heat') {
+
+else if (toolId === 'heat') {
     title.innerText = ' سوبر هيت / صب كول';
-    const refrigerantOptions = Object.keys(refPTData)
-        .map(r => `<option value="${r}">${r}</option>`).join('');
+    const refrigerantOptions = Object.keys(refPTData).map(r => `<option value="${r}">${r}</option>`).join('');
     
     setContent(`
         <div class="phase-selector mb-2">
@@ -2395,9 +1765,8 @@ else if(toolId === 'heat') {
         const systemType = document.getElementById('system_type').value;
         
         let satTemp, actualTemp, value, press, analysis = '';
-        let shValue = null, scValue = null;  // للتشخيص الذكي
+        let shValue = null, scValue = null;
 
-        // ---------- وضع Superheat ----------
         if (mode === 'sh') {
             press = parseFloat(document.getElementById('sh_p').value);
             const lineTemp = parseFloat(document.getElementById('sh_t').value);
@@ -2421,11 +1790,9 @@ else if(toolId === 'heat') {
             value = actualTemp - satTemp;
             shValue = value;
 
-            // قراءة غير منطقية
             if (value < 0) {
                 analysis = '?? قراءة غير منطقية (حساس خاطئ أو مكان قياس غير مناسب)';
             }
-            // تشخيص متعدد حسب القيمة ونوع النظام
             else if (value < 2) {
                 analysis = 'سوبر هيت منخفض جداً → خطر رجوع سائل للكمبروسر (Floodback)';
                 if (systemType === 'txv') analysis += ' – تحقق من TXV عالق مفتوح.';
@@ -2445,13 +1812,10 @@ else if(toolId === 'heat') {
                 analysis = ' سوبر هيت مرتفع جداً → نقص فريون شديد، انسداد كامل، أو صمام تمدد عالق مغلق';
             }
 
-            // إضافة تنبيه للفريونات الخليط
             if (['R407C', 'R404A', 'R410A'].includes(refrigerant)) {
                 analysis += '\n ملاحظة: فريون خليط – القيم تقريبية وقد تختلف حسب نسبة المكونات.';
             }
         }
-
-        // ---------- وضع Subcooling ----------
         else {
             press = parseFloat(document.getElementById('sc_p').value);
             const lineTemp = parseFloat(document.getElementById('sc_t').value);
@@ -2497,12 +1861,8 @@ else if(toolId === 'heat') {
             }
         }
 
-        // ------------------ التشخيص الذكي (إذا تم حساب القيمتين مسبقاً) ------------------
-        // نلاحظ أننا في هذا التصميم نحسب قيمة واحدة فقط حسب التبويب النشط.
-        // لكن يمكن تطوير الكود ليدخل المستخدم القيمتين معاً. سنضيف رسالة توجيهية:
         let smartMsg = '';
         if (mode === 'sh' && shValue !== null) {
-            // نقرأ قيمة SC من الواجهة (حتى لو مخفية) إن أمكن
             const scPressElem = document.getElementById('sc_p');
             const scTempElem = document.getElementById('sc_t');
             if (scPressElem && scTempElem) {
@@ -2536,7 +1896,6 @@ else if(toolId === 'heat') {
 
         if (smartMsg) analysis += '\n' + smartMsg;
 
-        // عرض النتيجة
         const resultObj = {
             'الفريون': refrigerant,
             'نوع النظام': systemType === 'capillary' ? 'شعري' : (systemType === 'txv' ? 'TXV' : 'إنفرتر'),
@@ -2550,7 +1909,6 @@ else if(toolId === 'heat') {
         showFullRes(mode === 'sh' ? 'نتيجة Superheat' : 'نتيجة Subcooling', resultObj);
     });
 
-    // دالة تبديل الوضع (تضاف لكائن ToolHelpers)
     window.ToolHelpers.setShScMode = function(btn, mode) {
         document.querySelectorAll('#modalBody .phase-option[data-shsc-mode]').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
@@ -2563,22 +1921,19 @@ else if(toolId === 'heat') {
             shDiv.style.display = 'none';
             scDiv.style.display = 'block';
         }
-        // مسح النتيجة السابقة
         if (typeof clearResult === 'function') clearResult();
     };
+    return;
 }
-    
-    // ================= أداة معدل التدفق =================
-    else if(toolId === 'flow') {
+
+else if (toolId === 'flow') {
     title.innerText = ' معدل تدفق الهواء AHU';
     
-    // الثوابت
     const CFM_TO_M3H = 1.699;
     const BTUH_PER_TON = 12000;
     
-    // الحالة
-    let mode = 'ton'; // 'ton' or 'load'
-    let state = {
+    let mode = 'ton';
+    let stateFlow = {
         ton: 1.5,
         cfmTon: 400,
         load: 18000,
@@ -2586,17 +1941,16 @@ else if(toolId === 'heat') {
         shr: 0.75
     };
     
-    // دوال الحساب
     function calcCFMByTon(ton, cfmTon) {
         return ton * cfmTon;
     }
     
     function calcCFMByLoad(load, dt, shr = 1) {
-        const dtF = dt * 1.8; // °C → °F
+        const dtF = dt * 1.8;
         return (load * shr) / (1.08 * dtF);
     }
     
-    const render = () => {
+    const renderFlow = () => {
         setContent(`
             <div class="flex gap-2 mb-3">
                 <button id="m1" class="tab-btn ${mode === 'ton' ? 'active' : ''}">حسب الطن</button>
@@ -2604,22 +1958,22 @@ else if(toolId === 'heat') {
             </div>
             ${mode === 'ton' ? `
                 <label>القدرة (طن)</label>
-                <input type="number" step="any" id="f_ton" value="${state.ton}">
+                <input type="number" step="any" id="f_ton" value="${stateFlow.ton}">
                 <label>CFM لكل طن (حسب نوع التطبيق)</label>
                 <select id="f_cfmTon">
-                    <option value="350" ${state.cfmTon === 350 ? 'selected' : ''}>350 (رطوبة عالية - مناطق ساحلية)</option>
-                    <option value="400" ${state.cfmTon === 400 ? 'selected' : ''}>400 (قياسي - تكييف مريح)</option>
-                    <option value="450" ${state.cfmTon === 450 ? 'selected' : ''}>450 (جاف - مناخ صحراوي)</option>
+                    <option value="350" ${stateFlow.cfmTon === 350 ? 'selected' : ''}>350 (رطوبة عالية - مناطق ساحلية)</option>
+                    <option value="400" ${stateFlow.cfmTon === 400 ? 'selected' : ''}>400 (قياسي - تكييف مريح)</option>
+                    <option value="450" ${stateFlow.cfmTon === 450 ? 'selected' : ''}>450 (جاف - مناخ صحراوي)</option>
                 </select>
                 <label>SHR (نسبة الحمل المحسوس - اختياري)</label>
-                <input type="number" step="0.01" id="f_shr_ton" value="${state.shr}" placeholder="0.75">
+                <input type="number" step="0.01" id="f_shr_ton" value="${stateFlow.shr}" placeholder="0.75">
             ` : `
                 <label>الحمل الحراري (BTU/h)</label>
-                <input type="number" step="any" id="f_load" value="${state.load}">
+                <input type="number" step="any" id="f_load" value="${stateFlow.load}">
                 <label>فرق الحرارة ΔT (°C)</label>
-                <input type="number" step="any" id="f_dt" value="${state.dt}">
+                <input type="number" step="any" id="f_dt" value="${stateFlow.dt}">
                 <label>SHR (نسبة الحمل المحسوس - اختياري)</label>
-                <input type="number" step="0.01" id="f_shr_load" value="${state.shr}" placeholder="0.75">
+                <input type="number" step="0.01" id="f_shr_load" value="${stateFlow.shr}" placeholder="0.75">
                 <div class="text-xs text-gray-500 mt-1">ملاحظة: ΔT بين 5 و 20 درجة مئوية للحصول على نتائج منطقية</div>
             `}
         `, () => {
@@ -2639,10 +1993,9 @@ else if(toolId === 'heat') {
                 
                 flow = calcCFMByTon(ton, cfmTon);
                 
-                // تحديث الحالة
-                state.ton = ton;
-                state.cfmTon = cfmTon;
-                state.shr = shrValue;
+                stateFlow.ton = ton;
+                stateFlow.cfmTon = cfmTon;
+                stateFlow.shr = shrValue;
             } else {
                 const load = parseFloat(document.getElementById('f_load').value);
                 const dt = parseFloat(document.getElementById('f_dt').value);
@@ -2663,13 +2016,11 @@ else if(toolId === 'heat') {
                 
                 flow = calcCFMByLoad(load, dt, shrValue);
                 
-                // تحديث الحالة
-                state.load = load;
-                state.dt = dt;
-                state.shr = shrValue;
+                stateFlow.load = load;
+                stateFlow.dt = dt;
+                stateFlow.shr = shrValue;
             }
             
-            // تنبيه ذكي
             if (flow > 3000) {
                 showToast(' تنبيه: معدل الهواء مرتفع جداً (>3000 CFM)، راجع حساباتك', 'info');
             } else if (flow < 200 && mode === 'load') {
@@ -2678,7 +2029,6 @@ else if(toolId === 'heat') {
             
             const m3h = flow * CFM_TO_M3H;
             
-            // بيانات إضافية للنتيجة
             const extraData = {
                 'CFM': Math.round(flow),
                 'm³/h': Math.round(m3h)
@@ -2686,12 +2036,12 @@ else if(toolId === 'heat') {
             
             if (mode === 'ton') {
                 extraData['نوع التطبيق'] = 
-                    state.cfmTon === 350 ? 'رطوبة عالية' : 
-                    state.cfmTon === 400 ? 'قياسي' : 'مناخ جاف';
-                extraData['CFM/طن'] = state.cfmTon;
+                    stateFlow.cfmTon === 350 ? 'رطوبة عالية' : 
+                    stateFlow.cfmTon === 400 ? 'قياسي' : 'مناخ جاف';
+                extraData['CFM/طن'] = stateFlow.cfmTon;
             } else {
-                extraData['ΔT (°C)'] = state.dt;
-                extraData['CFM/طن مقدر'] = Math.round(flow / (state.load / BTUH_PER_TON));
+                extraData['ΔT (°C)'] = stateFlow.dt;
+                extraData['CFM/طن مقدر'] = Math.round(flow / (stateFlow.load / BTUH_PER_TON));
             }
             
             if (shrValue !== 1) {
@@ -2701,438 +2051,373 @@ else if(toolId === 'heat') {
             showFullRes('معدل تدفق الهواء', extraData);
         });
         
-        // ربط الأزرار
         document.getElementById('m1')?.addEventListener('click', () => {
             mode = 'ton';
             clearResult();
-            render();
+            renderFlow();
         });
         document.getElementById('m2')?.addEventListener('click', () => {
             mode = 'load';
             clearResult();
-            render();
+            renderFlow();
         });
     };
     
-    render();
+    renderFlow();
+    return;
 }
-
 
 else if (toolId === 'refrigerant_charge') {
-        title.innerText = ' شحنة الفريون (جرام)';
-        const chargePerMeterRealistic = {
-            'R410A': { '1/4': 30, '3/8': 65, '1/2': 120, '5/8': 180, '3/4': 250 },
-            'R32':   { '1/4': 28, '3/8': 60, '1/2': 110, '5/8': 165, '3/4': 230 },
-            'R22':   { '1/4': 35, '3/8': 75, '1/2': 135, '5/8': 200, '3/4': 280 },
-            'R134a': { '1/4': 32, '3/8': 70, '1/2': 125, '5/8': 190, '3/4': 260 },
-            'R404A': { '1/4': 33, '3/8': 72, '1/2': 128, '5/8': 195, '3/4': 270 },
-            'R407C': { '1/4': 34, '3/8': 73, '1/2': 130, '5/8': 198, '3/4': 275 },
-            'R290':  { '1/4': 18, '3/8': 38, '1/2': 65,  '5/8': 95,  '3/4': 130 },
-            'R600a': { '1/4': 20, '3/8': 42, '1/2': 70,  '5/8': 105, '3/4': 145 }
-        };
-        
-        // 2. الأقطار الداخلية الحقيقية للمواسير النحاسية (مم)
-        const innerDiameters = {
-            '1/4': 4.8, '3/8': 7.9, '1/2': 11.0, '5/8': 14.0, '3/4': 17.0
-        };
-        
-        // 3. كثافات الغازات عند درجات حرارة تكثيف مختلفة (كجم/م³) للحساب النظري في وضع "كامل"
-        const densitiesByTemp = {
-            'R410A': { 35: 1030, 40: 950, 45: 880 },
-            'R32':   { 35: 920,  40: 850, 45: 790 },
-            'R22':   { 35: 1180, 40: 1100,45: 1020 },
-            'R134a': { 35: 1150, 40: 1070,45: 990 },
-            'R404A': { 35: 1000, 40: 950, 45: 900 },
-            'R407C': { 35: 1060, 40: 1000,45: 940 },
-            'R290':  { 35: 490,  40: 470, 45: 450 },
-            'R600a': { 35: 540,  40: 520, 45: 500 }
-        };
-        
-        // 4. معامل تصحيح حسب نوع النظام
-        const systemCorrection = {
-            'Split AC': 1.0,
-            'Cassette': 1.05,
-            'VRF': 1.15,
-            'Refrigeration': 1.3,
-            'Freezer': 1.4
-        };
-       
-        
-        
-        let mode = 'simple'; // 'simple', 'precise', 'full'
-       function updateGasInfo(selectedGas) {
-    const infoDiv = document.getElementById('gasInfoDisplay');
-    const refData = TOOL_CONSTANTS.ref_table.tableData[selectedGas];
-    if (infoDiv && refData) {
-        infoDiv.innerHTML = `<div class="text-xs bg-blue-50 p-2 rounded mt-2">
-             ضغط السحب: ${refData.suction} psi | ضغط الطرد: ${refData.discharge} psi | ضغط التوقف: ${refData.stop} psi
-        </div>`;
-    } else if (infoDiv) {
-        infoDiv.innerHTML = '<div class="text-xs text-red-500 p-2"> لا توجد بيانات ضغوط لهذا الفريون</div>';
-    }
-
+    title.innerText = ' شحنة الفريون (جرام)';
+    
+    const chargePerMeterRealistic = TOOL_CONSTANTS.chargePerMeterRealistic;
+    const innerDiameters = TOOL_CONSTANTS.innerDiameters_mm;
+    const densitiesByTemp = TOOL_CONSTANTS.densitiesByTemp;
+    const systemCorrection = TOOL_CONSTANTS.systemCorrection;
+    
+    let mode = 'simple';
+    
+    function updateGasInfo(selectedGas) {
+        const infoDiv = document.getElementById('gasInfoDisplay');
+        const refData = TOOL_CONSTANTS.ref_table.tableData[selectedGas];
+        if (infoDiv && refData) {
+            infoDiv.innerHTML = `<div class="text-xs bg-blue-50 p-2 rounded mt-2">
+                 ضغط السحب: ${refData.suction} psi | ضغط الطرد: ${refData.discharge} psi | ضغط التوقف: ${refData.stop} psi
+            </div>`;
+        } else if (infoDiv) {
+            infoDiv.innerHTML = '<div class="text-xs text-red-500 p-2"> لا توجد بيانات ضغوط لهذا الفريون</div>';
         }
-        
-        let renderUI = () => {
-            let html = `
-                <div class="flex gap-2 mb-3 flex-wrap">
-                    <button id="modeSimple" class="tab-btn ${mode === 'simple' ? 'active' : ''}"> تقريبي</button>
-                    <button id="modePrecise" class="tab-btn ${mode === 'precise' ? 'active' : ''}">دقيق </button>
-                    <button id="modeFull" class="tab-btn ${mode === 'full' ? 'active' : ''}">كامل  </button>
-                </div>
-            `;
-            
-            if (mode === 'simple') {
-                html += `
-                    <label>الشحنة الأساسية من المصنع (جرام)</label>
-                    <input type="number" step="any" id="factory_charge_simple" value="800" placeholder="مثال: 800">
-                    <label>الطول الفعلي للمواسير (م)</label>
-                    <input type="number" step="any" id="actual_length" value="10">
-                    <label>الطول القياسي للمصنع (م)</label>
-                    <input type="number" step="any" id="std_length" value="5">
-                    <label>الزيادة لكل متر إضافي (جرام/م) - من الكتالوج</label>
-                    <input type="number" step="any" id="extra_per_meter" value="65" placeholder="مثال: 65 جرام/م لـ R410A قطر 3/8">
-                    <div class="instruction-box text-xs mt-2"> هذا الوضع مناسب إذا كنت تعرف قيمة الزيادة لكل متر من كتالوج الجهاز بدقة و لا تنسى متابعة الضغط و الامبير و اداء الجهاز </div>
-                `;
-            } 
-            else if (mode === 'precise') {
-                let refOpts = Object.keys(chargePerMeterRealistic).map(r => `<option value="${r}">${r}</option>`).join('');
-                let diamOpts = Object.keys(innerDiameters).map(d => `<option value="${d}">${d} (${innerDiameters[d]} مم)</option>`).join('');
-                let systemOpts = Object.keys(systemCorrection).map(s => `<option value="${s}">${s}</option>`).join('');
-                let tempOpts = `<option value="35">35°C</option><option value="40" selected>40°C</option><option value="45">45°C</option>`;
-                
-                html += `
-                    <label> نوع الغاز</label>
-                    <select id="ref_precise">${refOpts}</select>
-                    <div id="gasInfoDisplay" class="text-xs"></div>
-                    
-                    <label class="mt-2"> قطر الماسورة السائلة</label>
-                    <select id="diam_precise">${diamOpts}</select>
-                    
-                    <label> نوع النظام</label>
-                    <select id="system_type">${systemOpts}</select>
-                    
-                    <label> درجة حرارة التكثيف</label>
-                    <select id="cond_temp">${tempOpts}</select>
-                    
-                    <label> الطول الفعلي للمواسير (م)</label>
-                    <input type="number" step="any" id="actual_len_precise" value="15">
-                    
-                    <label> الطول الأساسي للمصنع (م)</label>
-                    <input type="number" step="any" id="base_len_precise" value="5">
-                    
-                    <label> شحنة المصنع الأساسية (جرام) - موجودة على البلاتة</label>
-                    <input type="number" step="any" id="factory_charge_precise" value="1000">
-                    
-                    <div class="mt-2 p-2 border rounded bg-gray-50">
-                        <label class="font-bold text-sm"> طريقة حساب الزيادة:</label>
-                        <select id="calc_method_precise">
-                            <option value="auto">تلقائي (من جدول الشركات)</option>
-                            <option value="manual">يدوي (أدخل جرام/م من الكتالوج)</option>
-                        </select>
-                        <div id="manual_gram_div_precise" style="display:none;">
-                            <label class="mt-2">الشحنة لكل متر إضافي (جرام/م)</label>
-                            <input type="number" step="any" id="manual_gram_precise" value="65">
-                        </div>
-                     
-                    </div>
-                     <div class="instruction-box text-xs mt-2"> لا تنسى متابعة الضغط و الامبير و اداء الجهاز </div>
-
-                     `;
-            }
-            else if (mode === 'full') {
-                let refOpts = Object.keys(densitiesByTemp).map(r => `<option value="${r}">${r}</option>`).join('');
-                let diamOpts = Object.keys(innerDiameters).map(d => `<option value="${d}">${d} (${innerDiameters[d]} مم)</option>`).join('');
-                let tempOpts = `<option value="35">35°C</option><option value="40" selected>40°C</option><option value="45">45°C</option>`;
-                
-                html += `
-                    <label> نوع الغاز</label>
-                    <select id="ref_full">${refOpts}</select>
-                    <div id="gasInfoFull" class="text-xs"></div>
-                    
-                    <label> قطر ماسورة السائل</label>
-                    <select id="diam_liquid_full">${diamOpts}</select>
-                    
-                    <label> قطر ماسورة الغاز (الراجع)</label>
-                    <select id="diam_gas_full">${diamOpts}</select>
-                    
-                    <label> طول ماسورة السائل (م)</label>
-                    <input type="number" step="any" id="len_liquid" value="10">
-                    
-                    <label> طول ماسورة الغاز  (م)</label>
-                    <input type="number" step="any" id="len_gas" value="10">
-                    
-                    <label> درجة حرارة التكثيف</label>
-                    <select id="cond_temp_full">${tempOpts}</select>
-                    
-                    <div class="mt-2 p-2 border rounded">
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" id="fully_charged" class="ml-2"> النظام مفلور بالكامل (بمعنى الماسورة الغازية فيها سائل مضغوط)
-                        </label>
-                        <div class="text-xs text-gray-600 mt-1"> إذا كان النظام يعمل طبيعياً الماسورة الغازية تحتوي على بخار فقط اختر المربع فقط إذا كانت الماسورة الغازية مليئة سائل (نادر)</div>
-                    </div>
-                    
-                    <label class="mt-2"> شحنة المصنع الأساسية (جرام) - تضاف إلى شحنة المواسير</label>
-                    <input type="number" step="any" id="factory_charge_full" value="800">
-                    
-                    <div class="instruction-box text-xs mt-2">هذا الوضع يحسب كمية الفريون داخل المواسير بناءً على حجمها الداخلي وكثافة الغاز عند درجة حرارة التكثيف مثالي عند تفريغ النظام بالكامل وإعادة الشحن و لا تنسى متابعة الضغط و الامبير و اداء الجهاز </div>
-                `;
-            }
-            
-            body.innerHTML = html;
-            bindClearResultOnChange(body);
-            
-            // ربط الأحداث
-            if (mode === 'precise') {
-                const gasSelect = document.getElementById('ref_precise');
-             if (gasSelect) {
-    updateGasInfo(gasSelect.value);
-    gasSelect.onchange = () => updateGasInfo(gasSelect.value);
-}
-                const methodSelect = document.getElementById('calc_method_precise');
-                const manualDiv = document.getElementById('manual_gram_div_precise');
-                if (methodSelect) {
-                    methodSelect.onchange = () => {
-                        manualDiv.style.display = methodSelect.value === 'manual' ? 'block' : 'none';
-                        clearResult();
-                    };
-                    manualDiv.style.display = methodSelect.value === 'manual' ? 'block' : 'none';
-                }
-            } else if (mode === 'full') {
-                const gasSelect = document.getElementById('ref_full');
-if (gasSelect) {
-    const infoDiv = document.getElementById('gasInfoFull');
-    if (infoDiv) {
-        const refData = TOOL_CONSTANTS.ref_table.tableData[gasSelect.value];
-        if (refData) {
-            infoDiv.innerHTML = `<div class="text-xs bg-blue-50 p-2 rounded mt-2"> ضغط السحب: ${refData.suction} psi | ضغط الطرد: ${refData.discharge} psi | ضغط التوقف: ${refData.stop} psi</div>`;
-        }
-    }
-    gasSelect.onchange = () => {
-        const newRef = gasSelect.value;
-        const newData = TOOL_CONSTANTS.ref_table.tableData[newRef];
-        if (infoDiv && newData) {
-            infoDiv.innerHTML = `<div class="text-xs bg-blue-50 p-2 rounded mt-2"> ضغط السحب: ${newData.suction} psi | ضغط الطرد: ${newData.discharge} psi | ضغط التوقف: ${newData.stop} psi</div>`;
-        }
-    };
-}
-            }
-            
-            // تحديث أزرار التبويب
-            const btnSimple = document.getElementById('modeSimple');
-            const btnPrecise = document.getElementById('modePrecise');
-            const btnFull = document.getElementById('modeFull');
-            if (btnSimple) btnSimple.onclick = () => { mode = 'simple'; clearResult(); renderUI(); };
-            if (btnPrecise) btnPrecise.onclick = () => { mode = 'precise'; clearResult(); renderUI(); };
-            if (btnFull) btnFull.onclick = () => { mode = 'full'; clearResult(); renderUI(); };
-            
-            // زر الحساب
-            calcBtn.onclick = () => withLoading(calcBtn, () => {
-                if (mode === 'simple') {
-                    let factory = parseFloat(document.getElementById('factory_charge_simple').value);
-                    let actual = parseFloat(document.getElementById('actual_length').value);
-                    let std = parseFloat(document.getElementById('std_length').value);
-                    let extraPerM = parseFloat(document.getElementById('extra_per_meter').value);
-                    if (isNaN(factory) || isNaN(actual) || isNaN(std) || isNaN(extraPerM)) {
-                        showToast('أدخل جميع القيم بشكل صحيح', 'warning');
-                        return;
-                    }
-                    let extraLen = Math.max(0, actual - std);
-                    let extraCharge = extraLen * extraPerM;
-                    let total = factory + extraCharge;
-                    
-                    let warnings = [];
-                    if (extraLen > 30) warnings.push(' الطول الإضافي كبير جداً (>30م) - يفضل زيادة قطر الماسورة أو إعادة تصميم');
-                    if (extraCharge > 1000) warnings.push(' الشحنة الإضافية أكبر من 1000 جرام - تأكد من سعة النظام');
-                    
-                    showFullRes('شحنة الفريون (طريقة تقريبية)', {
-                        ' تنبيهات': warnings.length ? warnings.join(' | ') : 'لا توجد',
-                        'شحنة المصنع': factory.toFixed(0) + ' جرام',
-                        'الطول القياسي': std + ' م',
-                        'الطول الفعلي': actual + ' م',
-                        'الطول الإضافي': extraLen + ' م',
-                        'الزيادة لكل متر': extraPerM.toFixed(0) + ' جرام/م',
-                        'الشحنة الإضافية': extraCharge.toFixed(0) + ' جرام',
-                        ' الشحنة الكلية الموصى بها': total.toFixed(0) + ' جرام'
-                    });
-                } 
-                else if (mode === 'precise') {
-                    let ref = document.getElementById('ref_precise').value;
-                    let diam = document.getElementById('diam_precise').value;
-                    let system = document.getElementById('system_type').value;
-                    let temp = parseFloat(document.getElementById('cond_temp').value);
-                    let actualLen = parseFloat(document.getElementById('actual_len_precise').value);
-                    let baseLen = parseFloat(document.getElementById('base_len_precise').value);
-                    let factoryCharge = parseFloat(document.getElementById('factory_charge_precise').value);
-                    let method = document.getElementById('calc_method_precise').value;
-                    let manualGram = parseFloat(document.getElementById('manual_gram_precise')?.value);
-                    
-                    if (isNaN(actualLen) || isNaN(baseLen) || isNaN(factoryCharge)) {
-                        showToast('أدخل القيم بشكل صحيح', 'warning');
-                        return;
-                    }
-                    
-                    let gramPerMeter;
-                    let extraLen = Math.max(0, actualLen - baseLen);
-                    let extraCharge;
-                    let details = {};
-                    
-                    if (method === 'manual' && !isNaN(manualGram) && manualGram > 0) {
-                        gramPerMeter = manualGram;
-                        extraCharge = gramPerMeter * extraLen;
-                        details['طريقة الحساب'] = 'يدوي (من الكتالوج)';
-                        details['قيمة الإدخال'] = gramPerMeter.toFixed(1) + ' جرام/م';
-                    } else {
-                        // الطريقة التلقائية باستخدام جدول chargePerMeterRealistic
-                        if (!chargePerMeterRealistic[ref] || !chargePerMeterRealistic[ref][diam]) {
-                            showToast('لا توجد بيانات حقيقية لهذا الغاز والقطر', 'error');
-                            return;
-                        }
-                        gramPerMeter = chargePerMeterRealistic[ref][diam];
-                        extraCharge = gramPerMeter * extraLen;
-                        details['طريقة الحساب'] = 'تلقائي (من جدول كتالوجات الشركات)';
-                        details['القيمة المعيارية'] = gramPerMeter.toFixed(1) + ' جرام/م';
-                    }
-                    
-                    // تطبيق معامل تصحيح حسب نوع النظام
-                    let correction = systemCorrection[system] || 1.0;
-                    let extraChargeCorrected = extraCharge * correction;
-                    let totalCharge = factoryCharge + extraChargeCorrected;
-                    
-                    // تطبيق تصحيح درجة الحرارة (تأثير بسيط على الكثافة)
-                    let tempCorrection = 1.0;
-                    if (densitiesByTemp[ref] && densitiesByTemp[ref][temp]) {
-                        let baseDensity = densitiesByTemp[ref][40]; // كثافة عند 40 كمرجع
-                        let actualDensity = densitiesByTemp[ref][temp];
-                        tempCorrection = actualDensity / baseDensity;
-                        extraChargeCorrected = extraCharge * correction * tempCorrection;
-                        totalCharge = factoryCharge + extraChargeCorrected;
-                    }
-                    
-                    let warnings = [];
-                    if (extraLen > 30) warnings.push(' الطول الإضافي كبير جداً');
-                    if (extraChargeCorrected > 1000) warnings.push('الشحنة الإضافية > 1000 جرام، راجع قدرة النظام');
-                    
-                    showFullRes('شحنة الفريون ', {
-                        'تنبيهات': warnings.length ? warnings.join(' | ') : 'لا توجد',
-                        'نوع الغاز': ref,
-                        'القطر السائل': diam + ` (${innerDiameters[diam]} مم)`,
-                        'نوع النظام': system + ` (معامل ${correction})`,
-                        'درجة حرارة التكثيف': temp + '°C',
-                        'الطول الإضافي الفعلي': extraLen + ' م',
-                        'الشحنة لكل متر (قاعدة)': gramPerMeter.toFixed(1) + ' جرام/م',
-                        'الشحنة الإضافية بعد التصحيحات': extraChargeCorrected.toFixed(0) + ' جرام',
-                        'شحنة المصنع الأساسية': factoryCharge.toFixed(0) + ' جرام',
-                        'الشحنة الكلية النهائية': totalCharge.toFixed(0) + ' جرام'
-                    });
-                }
-                else if (mode === 'full') {
-                    let ref = document.getElementById('ref_full').value;
-                    let diamLiquid = document.getElementById('diam_liquid_full').value;
-                    let diamGas = document.getElementById('diam_gas_full').value;
-                    let lenLiquid = parseFloat(document.getElementById('len_liquid').value);
-                    let lenGas = parseFloat(document.getElementById('len_gas').value);
-                    let temp = parseFloat(document.getElementById('cond_temp_full').value);
-                    let fullyCharged = document.getElementById('fully_charged').checked;
-                    let factoryCharge = parseFloat(document.getElementById('factory_charge_full').value);
-                    
-                    if (isNaN(lenLiquid) || isNaN(lenGas) || isNaN(factoryCharge)) {
-                        showToast('أدخل الأطوال بشكل صحيح', 'warning');
-                        return;
-                    }
-                    
-                    // الحصول على الكثافة عند درجة الحرارة المختارة
-                    let density = densitiesByTemp[ref]?.[temp];
-                    if (!density) {
-                        showToast('لا توجد بيانات كثافة لهذا الغاز ودرجة الحرارة', 'error');
-                        return;
-                    }
-                    
-                    // حساب حجم الماسورة السائلة (دائماً سائل)
-                    let innerDiamLiquid_m = innerDiameters[diamLiquid] / 1000;
-                    let areaLiquid = Math.PI * Math.pow(innerDiamLiquid_m / 2, 2);
-                    let volumeLiquid = areaLiquid * lenLiquid;
-                    let massLiquid = volumeLiquid * density * 1000; // تحويل إلى جرام
-                    
-                    // حساب حجم الماسورة الغازية
-                    let innerDiamGas_m = innerDiameters[diamGas] / 1000;
-                    let areaGas = Math.PI * Math.pow(innerDiamGas_m / 2, 2);
-                    let volumeGas = areaGas * lenGas;
-                    let massGas;
-                    if (fullyCharged) {
-                        // افتراض أن الغاز مضغوط وكثافته مثل السائل (حالة نادرة)
-                        massGas = volumeGas * density * 1000;
-                    } else {
-                        // الحالة الطبيعية: الماسورة الغازية تحتوي على بخار، كثافته أقل بكثير
-                        // نقدر كثافة البخار عند درجة التكثيف (تقريباً 1/20 إلى 1/50 من السائل)
-                        let vaporDensity = density * 0.05; // تقريب معقول
-                        massGas = volumeGas * vaporDensity * 1000;
-                    }
-                    
-                    let totalPipingCharge = massLiquid + massGas;
-                    let totalSystemCharge = factoryCharge + totalPipingCharge;
-                    
-                    let warnings = [];
-                    if (lenLiquid + lenGas > 50) warnings.push('الطول الكلي كبير جداً (>50م)');
-                    if (totalPipingCharge > 2000) warnings.push(' شحنة المواسير وحدها كبيرة، تأكد من سعة الضاغط');
-                    
-                    showFullRes('شحنة الفريون (حساب حجم المواسير)', {
-                        ' تنبيهات': warnings.length ? warnings.join(' | ') : 'لا توجد',
-                        'نوع الغاز': ref,
-                        'درجة الحرارة': temp + '°C',
-                        'كثافة السائل المستخدمة': density + ' كجم/م³',
-                        'قطر السائل': diamLiquid + ` (${innerDiameters[diamLiquid]} مم)`,
-                        'طول السائل': lenLiquid + ' م',
-                        'كتلة الفريون في السائل': massLiquid.toFixed(0) + ' جرام',
-                        'قطر الغاز': diamGas + ` (${innerDiameters[diamGas]} مم)`,
-                        'طول الغاز': lenGas + ' م',
-                        'حالة الغاز': fullyCharged ? 'سائل مضغوط' : 'بخار (كثافة مقدرة 5%)',
-                        'كتلة الفريون في الغاز': massGas.toFixed(0) + ' جرام',
-                        'شحنة المصنع الأساسية': factoryCharge.toFixed(0) + ' جرام',
-                        ' شحنة المواسير الكلية': totalPipingCharge.toFixed(0) + ' جرام',
-                        ' شحنة النظام النهائية': totalSystemCharge.toFixed(0) + ' جرام'
-                    });
-                }
-            });
-        };
-        
-        renderUI();
     }
     
+    let renderUI = () => {
+        let html = `
+            <div class="flex gap-2 mb-3 flex-wrap">
+                <button id="modeSimple" class="tab-btn ${mode === 'simple' ? 'active' : ''}"> تقريبي</button>
+                <button id="modePrecise" class="tab-btn ${mode === 'precise' ? 'active' : ''}">دقيق </button>
+                <button id="modeFull" class="tab-btn ${mode === 'full' ? 'active' : ''}">كامل  </button>
+            </div>
+        `;
+        
+        if (mode === 'simple') {
+            html += `
+                <label>الشحنة الأساسية من المصنع (جرام)</label>
+                <input type="number" step="any" id="factory_charge_simple" value="800" placeholder="مثال: 800">
+                <label>الطول الفعلي للمواسير (م)</label>
+                <input type="number" step="any" id="actual_length" value="10">
+                <label>الطول القياسي للمصنع (م)</label>
+                <input type="number" step="any" id="std_length" value="5">
+                <label>الزيادة لكل متر إضافي (جرام/م) - من الكتالوج</label>
+                <input type="number" step="any" id="extra_per_meter" value="65" placeholder="مثال: 65 جرام/م لـ R410A قطر 3/8">
+                <div class="instruction-box text-xs mt-2"> هذا الوضع مناسب إذا كنت تعرف قيمة الزيادة لكل متر من كتالوج الجهاز بدقة و لا تنسى متابعة الضغط و الامبير و اداء الجهاز </div>
+            `;
+        } 
+        else if (mode === 'precise') {
+            let refOpts = Object.keys(chargePerMeterRealistic).map(r => `<option value="${r}">${r}</option>`).join('');
+            let diamOpts = Object.keys(innerDiameters).map(d => `<option value="${d}">${d} (${innerDiameters[d]} مم)</option>`).join('');
+            let systemOpts = Object.keys(systemCorrection).map(s => `<option value="${s}">${s}</option>`).join('');
+            let tempOpts = `<option value="35">35°C</option><option value="40" selected>40°C</option><option value="45">45°C</option>`;
+            
+            html += `
+                <label> نوع الغاز</label>
+                <select id="ref_precise">${refOpts}</select>
+                <div id="gasInfoDisplay" class="text-xs"></div>
+                
+                <label class="mt-2"> قطر الماسورة السائلة</label>
+                <select id="diam_precise">${diamOpts}</select>
+                
+                <label> نوع النظام</label>
+                <select id="system_type">${systemOpts}</select>
+                
+                <label> درجة حرارة التكثيف</label>
+                <select id="cond_temp">${tempOpts}</select>
+                
+                <label> الطول الفعلي للمواسير (م)</label>
+                <input type="number" step="any" id="actual_len_precise" value="15">
+                
+                <label> الطول الأساسي للمصنع (م)</label>
+                <input type="number" step="any" id="base_len_precise" value="5">
+                
+                <label> شحنة المصنع الأساسية (جرام) - موجودة على البلاتة</label>
+                <input type="number" step="any" id="factory_charge_precise" value="1000">
+                
+                <div class="mt-2 p-2 border rounded bg-gray-50">
+                    <label class="font-bold text-sm"> طريقة حساب الزيادة:</label>
+                    <select id="calc_method_precise">
+                        <option value="auto">تلقائي (من جدول الشركات)</option>
+                        <option value="manual">يدوي (أدخل جرام/م من الكتالوج)</option>
+                    </select>
+                    <div id="manual_gram_div_precise" style="display:none;">
+                        <label class="mt-2">الشحنة لكل متر إضافي (جرام/م)</label>
+                        <input type="number" step="any" id="manual_gram_precise" value="65">
+                    </div>
+                </div>
+                <div class="instruction-box text-xs mt-2"> لا تنسى متابعة الضغط و الامبير و اداء الجهاز </div>
+            `;
+        }
+        else if (mode === 'full') {
+            let refOpts = Object.keys(densitiesByTemp).map(r => `<option value="${r}">${r}</option>`).join('');
+            let diamOpts = Object.keys(innerDiameters).map(d => `<option value="${d}">${d} (${innerDiameters[d]} مم)</option>`).join('');
+            let tempOpts = `<option value="35">35°C</option><option value="40" selected>40°C</option><option value="45">45°C</option>`;
+            
+            html += `
+                <label> نوع الغاز</label>
+                <select id="ref_full">${refOpts}</select>
+                <div id="gasInfoFull" class="text-xs"></div>
+                
+                <label> قطر ماسورة السائل</label>
+                <select id="diam_liquid_full">${diamOpts}</select>
+                
+                <label> قطر ماسورة الغاز (الراجع)</label>
+                <select id="diam_gas_full">${diamOpts}</select>
+                
+                <label> طول ماسورة السائل (م)</label>
+                <input type="number" step="any" id="len_liquid" value="10">
+                
+                <label> طول ماسورة الغاز  (م)</label>
+                <input type="number" step="any" id="len_gas" value="10">
+                
+                <label> درجة حرارة التكثيف</label>
+                <select id="cond_temp_full">${tempOpts}</select>
+                
+                <div class="mt-2 p-2 border rounded">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="fully_charged" class="ml-2"> النظام مفلور بالكامل (بمعنى الماسورة الغازية فيها سائل مضغوط)
+                    </label>
+                    <div class="text-xs text-gray-600 mt-1"> إذا كان النظام يعمل طبيعياً الماسورة الغازية تحتوي على بخار فقط اختر المربع فقط إذا كانت الماسورة الغازية مليئة سائل (نادر)</div>
+                </div>
+                
+                <label class="mt-2"> شحنة المصنع الأساسية (جرام) - تضاف إلى شحنة المواسير</label>
+                <input type="number" step="any" id="factory_charge_full" value="800">
+                
+                <div class="instruction-box text-xs mt-2">هذا الوضع يحسب كمية الفريون داخل المواسير بناءً على حجمها الداخلي وكثافة الغاز عند درجة حرارة التكثيف مثالي عند تفريغ النظام بالكامل وإعادة الشحن و لا تنسى متابعة الضغط و الامبير و اداء الجهاز </div>
+            `;
+        }
+        
+        body.innerHTML = html;
+        bindClearResultOnChange(body);
+        
+        if (mode === 'precise') {
+            const gasSelect = document.getElementById('ref_precise');
+            if (gasSelect) {
+                updateGasInfo(gasSelect.value);
+                gasSelect.onchange = () => updateGasInfo(gasSelect.value);
+            }
+            const methodSelect = document.getElementById('calc_method_precise');
+            const manualDiv = document.getElementById('manual_gram_div_precise');
+            if (methodSelect) {
+                methodSelect.onchange = () => {
+                    manualDiv.style.display = methodSelect.value === 'manual' ? 'block' : 'none';
+                    clearResult();
+                };
+                manualDiv.style.display = methodSelect.value === 'manual' ? 'block' : 'none';
+            }
+        } else if (mode === 'full') {
+            const gasSelect = document.getElementById('ref_full');
+            if (gasSelect) {
+                const infoDiv = document.getElementById('gasInfoFull');
+                if (infoDiv) {
+                    const refData = TOOL_CONSTANTS.ref_table.tableData[gasSelect.value];
+                    if (refData) {
+                        infoDiv.innerHTML = `<div class="text-xs bg-blue-50 p-2 rounded mt-2"> ضغط السحب: ${refData.suction} psi | ضغط الطرد: ${refData.discharge} psi | ضغط التوقف: ${refData.stop} psi</div>`;
+                    }
+                }
+                gasSelect.onchange = () => {
+                    const newRef = gasSelect.value;
+                    const newData = TOOL_CONSTANTS.ref_table.tableData[newRef];
+                    if (infoDiv && newData) {
+                        infoDiv.innerHTML = `<div class="text-xs bg-blue-50 p-2 rounded mt-2"> ضغط السحب: ${newData.suction} psi | ضغط الطرد: ${newData.discharge} psi | ضغط التوقف: ${newData.stop} psi</div>`;
+                    }
+                };
+            }
+        }
+        
+        const btnSimple = document.getElementById('modeSimple');
+        const btnPrecise = document.getElementById('modePrecise');
+        const btnFull = document.getElementById('modeFull');
+        if (btnSimple) btnSimple.onclick = () => { mode = 'simple'; clearResult(); renderUI(); };
+        if (btnPrecise) btnPrecise.onclick = () => { mode = 'precise'; clearResult(); renderUI(); };
+        if (btnFull) btnFull.onclick = () => { mode = 'full'; clearResult(); renderUI(); };
+        
+        calcBtn.onclick = () => withLoading(calcBtn, () => {
+            if (mode === 'simple') {
+                let factory = parseFloat(document.getElementById('factory_charge_simple').value);
+                let actual = parseFloat(document.getElementById('actual_length').value);
+                let std = parseFloat(document.getElementById('std_length').value);
+                let extraPerM = parseFloat(document.getElementById('extra_per_meter').value);
+                if (isNaN(factory) || isNaN(actual) || isNaN(std) || isNaN(extraPerM)) {
+                    showToast('أدخل جميع القيم بشكل صحيح', 'warning');
+                    return;
+                }
+                let extraLen = Math.max(0, actual - std);
+                let extraCharge = extraLen * extraPerM;
+                let total = factory + extraCharge;
+                
+                let warnings = [];
+                if (extraLen > 30) warnings.push(' الطول الإضافي كبير جداً (>30م) - يفضل زيادة قطر الماسورة أو إعادة تصميم');
+                if (extraCharge > 1000) warnings.push(' الشحنة الإضافية أكبر من 1000 جرام - تأكد من سعة النظام');
+                
+                showFullRes('شحنة الفريون (طريقة تقريبية)', {
+                    ' تنبيهات': warnings.length ? warnings.join(' | ') : 'لا توجد',
+                    'شحنة المصنع': factory.toFixed(0) + ' جرام',
+                    'الطول القياسي': std + ' م',
+                    'الطول الفعلي': actual + ' م',
+                    'الطول الإضافي': extraLen + ' م',
+                    'الزيادة لكل متر': extraPerM.toFixed(0) + ' جرام/م',
+                    'الشحنة الإضافية': extraCharge.toFixed(0) + ' جرام',
+                    ' الشحنة الكلية الموصى بها': total.toFixed(0) + ' جرام'
+                });
+            } 
+            else if (mode === 'precise') {
+                let ref = document.getElementById('ref_precise').value;
+                let diam = document.getElementById('diam_precise').value;
+                let system = document.getElementById('system_type').value;
+                let temp = parseFloat(document.getElementById('cond_temp').value);
+                let actualLen = parseFloat(document.getElementById('actual_len_precise').value);
+                let baseLen = parseFloat(document.getElementById('base_len_precise').value);
+                let factoryCharge = parseFloat(document.getElementById('factory_charge_precise').value);
+                let method = document.getElementById('calc_method_precise').value;
+                let manualGram = parseFloat(document.getElementById('manual_gram_precise')?.value);
+                
+                if (isNaN(actualLen) || isNaN(baseLen) || isNaN(factoryCharge)) {
+                    showToast('أدخل القيم بشكل صحيح', 'warning');
+                    return;
+                }
+                
+                let gramPerMeter;
+                let extraLen = Math.max(0, actualLen - baseLen);
+                let extraCharge;
+                let details = {};
+                
+                if (method === 'manual' && !isNaN(manualGram) && manualGram > 0) {
+                    gramPerMeter = manualGram;
+                    extraCharge = gramPerMeter * extraLen;
+                    details['طريقة الحساب'] = 'يدوي (من الكتالوج)';
+                    details['قيمة الإدخال'] = gramPerMeter.toFixed(1) + ' جرام/م';
+                } else {
+                    if (!chargePerMeterRealistic[ref] || !chargePerMeterRealistic[ref][diam]) {
+                        showToast('لا توجد بيانات حقيقية لهذا الغاز والقطر', 'error');
+                        return;
+                    }
+                    gramPerMeter = chargePerMeterRealistic[ref][diam];
+                    extraCharge = gramPerMeter * extraLen;
+                    details['طريقة الحساب'] = 'تلقائي (من جدول كتالوجات الشركات)';
+                    details['القيمة المعيارية'] = gramPerMeter.toFixed(1) + ' جرام/م';
+                }
+                
+                let correction = systemCorrection[system] || 1.0;
+                let extraChargeCorrected = extraCharge * correction;
+                let totalCharge = factoryCharge + extraChargeCorrected;
+                
+                let tempCorrection = 1.0;
+                if (densitiesByTemp[ref] && densitiesByTemp[ref][temp]) {
+                    let baseDensity = densitiesByTemp[ref][40];
+                    let actualDensity = densitiesByTemp[ref][temp];
+                    tempCorrection = actualDensity / baseDensity;
+                    extraChargeCorrected = extraCharge * correction * tempCorrection;
+                    totalCharge = factoryCharge + extraChargeCorrected;
+                }
+                
+                let warnings = [];
+                if (extraLen > 30) warnings.push(' الطول الإضافي كبير جداً');
+                if (extraChargeCorrected > 1000) warnings.push('الشحنة الإضافية > 1000 جرام، راجع قدرة النظام');
+                
+                showFullRes('شحنة الفريون ', {
+                    'تنبيهات': warnings.length ? warnings.join(' | ') : 'لا توجد',
+                    'نوع الغاز': ref,
+                    'القطر السائل': diam + ` (${innerDiameters[diam]} مم)`,
+                    'نوع النظام': system + ` (معامل ${correction})`,
+                    'درجة حرارة التكثيف': temp + '°C',
+                    'الطول الإضافي الفعلي': extraLen + ' م',
+                    'الشحنة لكل متر (قاعدة)': gramPerMeter.toFixed(1) + ' جرام/م',
+                    'الشحنة الإضافية بعد التصحيحات': extraChargeCorrected.toFixed(0) + ' جرام',
+                    'شحنة المصنع الأساسية': factoryCharge.toFixed(0) + ' جرام',
+                    'الشحنة الكلية النهائية': totalCharge.toFixed(0) + ' جرام'
+                });
+            }
+            else if (mode === 'full') {
+                let ref = document.getElementById('ref_full').value;
+                let diamLiquid = document.getElementById('diam_liquid_full').value;
+                let diamGas = document.getElementById('diam_gas_full').value;
+                let lenLiquid = parseFloat(document.getElementById('len_liquid').value);
+                let lenGas = parseFloat(document.getElementById('len_gas').value);
+                let temp = parseFloat(document.getElementById('cond_temp_full').value);
+                let fullyCharged = document.getElementById('fully_charged').checked;
+                let factoryCharge = parseFloat(document.getElementById('factory_charge_full').value);
+                
+                if (isNaN(lenLiquid) || isNaN(lenGas) || isNaN(factoryCharge)) {
+                    showToast('أدخل الأطوال بشكل صحيح', 'warning');
+                    return;
+                }
+                
+                let density = densitiesByTemp[ref]?.[temp];
+                if (!density) {
+                    showToast('لا توجد بيانات كثافة لهذا الغاز ودرجة الحرارة', 'error');
+                    return;
+                }
+                
+                let innerDiamLiquid_m = innerDiameters[diamLiquid] / 1000;
+                let areaLiquid = Math.PI * Math.pow(innerDiamLiquid_m / 2, 2);
+                let volumeLiquid = areaLiquid * lenLiquid;
+                let massLiquid = volumeLiquid * density * 1000;
+                
+                let innerDiamGas_m = innerDiameters[diamGas] / 1000;
+                let areaGas = Math.PI * Math.pow(innerDiamGas_m / 2, 2);
+                let volumeGas = areaGas * lenGas;
+                let massGas;
+                if (fullyCharged) {
+                    massGas = volumeGas * density * 1000;
+                } else {
+                    let vaporDensity = density * 0.05;
+                    massGas = volumeGas * vaporDensity * 1000;
+                }
+                
+                let totalPipingCharge = massLiquid + massGas;
+                let totalSystemCharge = factoryCharge + totalPipingCharge;
+                
+                let warnings = [];
+                if (lenLiquid + lenGas > 50) warnings.push('الطول الكلي كبير جداً (>50م)');
+                if (totalPipingCharge > 2000) warnings.push(' شحنة المواسير وحدها كبيرة، تأكد من سعة الضاغط');
+                
+                showFullRes('شحنة الفريون (حساب حجم المواسير)', {
+                    ' تنبيهات': warnings.length ? warnings.join(' | ') : 'لا توجد',
+                    'نوع الغاز': ref,
+                    'درجة الحرارة': temp + '°C',
+                    'كثافة السائل المستخدمة': density + ' كجم/م³',
+                    'قطر السائل': diamLiquid + ` (${innerDiameters[diamLiquid]} مم)`,
+                    'طول السائل': lenLiquid + ' م',
+                    'كتلة الفريون في السائل': massLiquid.toFixed(0) + ' جرام',
+                    'قطر الغاز': diamGas + ` (${innerDiameters[diamGas]} مم)`,
+                    'طول الغاز': lenGas + ' م',
+                    'حالة الغاز': fullyCharged ? 'سائل مضغوط' : 'بخار (كثافة مقدرة 5%)',
+                    'كتلة الفريون في الغاز': massGas.toFixed(0) + ' جرام',
+                    'شحنة المصنع الأساسية': factoryCharge.toFixed(0) + ' جرام',
+                    ' شحنة المواسير الكلية': totalPipingCharge.toFixed(0) + ' جرام',
+                    ' شحنة النظام النهائية': totalSystemCharge.toFixed(0) + ' جرام'
+                });
+            }
+        });
+    };
+    
+    renderUI();
+    return;
+}
 
 else if (toolId === 'air_velocity') {
     title.innerText = ' تصميم مجاري الهوا';
     
-    // ----- الإعدادات الديناميكية حسب نوع المشروع -----
-    const PROJECT_LIMITS = {
-        res: {   // سكني
-            supply: { min: 2.5, max: 4.0, ideal: 3.2 },
-            return: { min: 2.0, max: 4.5, ideal: 3.0 },
-            exhaust: { min: 2.5, max: 5.0, ideal: 3.5 }
-        },
-        com: {   // تجاري
-            supply: { min: 4.0, max: 6.0, ideal: 5.0 },
-            return: { min: 3.0, max: 5.5, ideal: 4.0 },
-            exhaust: { min: 3.5, max: 6.0, ideal: 4.5 }
-        },
-        ind: {   // صناعي
-            supply: { min: 5.0, max: 8.0, ideal: 6.5 },
-            return: { min: 4.0, max: 7.0, ideal: 5.5 },
-            exhaust: { min: 4.5, max: 8.0, ideal: 6.0 }
-        }
-    };
+    const PROJECT_LIMITS = TOOL_CONSTANTS.projectLimits;
     
-    // دوال مساعدة
     function round2(v) { return Math.round(v * 100) / 100; }
     function round0(v) { return Math.round(v); }
     function round1(v) { return Math.round(v * 10) / 10; }
+    function round4(v) { return Math.round(v * 10000) / 10000; }
     
-    // تحويل الوحدات
     function toCFM(value, unit) {
         if (unit === 'cfm') return value;
         if (unit === 'm3h') return value / 1.699;
         return value;
     }
+    
     function toM2(value, unit) {
         if (unit === 'm2') return value;
         if (unit === 'cm2') return value / 10000;
@@ -3216,12 +2501,11 @@ else if (toolId === 'air_velocity') {
         
         <div class="text-xs text-gray-500 mt-3"> ملاحظة: في وضع حساب السرعة الأولوية للأبعاد (مستطيل أو دائري) ثم المساحة</div>
     `, () => {
-        // ----- قراءة المدخلات العامة -----
         let flow = parseFloat(document.getElementById('av_flow').value);
         let flowUnit = document.getElementById('av_flow_unit').value;
         if (isNaN(flow) || flow <= 0) { showToast('أدخل تدفقاً صحيحاً (>0)', 'warning'); return; }
         let cfm = toCFM(flow, flowUnit);
-        let m3s = cfm * 0.000471947;   // m³/s
+        let m3s = cfm * 0.000471947;
         
         let airType = document.getElementById('av_air_type').value;
         let projectType = document.getElementById('project_type').value;
@@ -3236,26 +2520,22 @@ else if (toolId === 'air_velocity') {
         let areaM2 = null;
         let velocity_ms = null;
         let hydraulicDiameter = null;
-        let resultArea = null;       // للوضع size
+        let resultArea = null;
         
-        // ----- التحقق من الأبعاد أو المساحة أو السرعة المستهدفة -----
         if (calcMode === 'velocity') {
-            // وضع حساب السرعة
             const useAreaDirect = document.getElementById('av_use_area_direct').checked;
             if (ductShape === 'rect') {
                 if (useAreaDirect) {
-                    // استخدام المساحة المباشرة
                     let areaVal = parseFloat(document.getElementById('av_area').value);
                     let areaUnit = document.getElementById('av_area_unit').value;
                     if (!isNaN(areaVal) && areaVal > 0) {
                         areaM2 = toM2(areaVal, areaUnit);
-                        hydraulicDiameter = null; // غير معروف بدون أبعاد
+                        hydraulicDiameter = null;
                     } else {
                         showToast(' أدخل مساحة صحيحة (>0)', 'warning');
                         return;
                     }
                 } else {
-                    // استخدام الأبعاد
                     let width = parseFloat(document.getElementById('av_width').value);
                     let height = parseFloat(document.getElementById('av_height').value);
                     if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
@@ -3266,14 +2546,13 @@ else if (toolId === 'air_velocity') {
                         return;
                     }
                 }
-            } else { // دائري
+            } else {
                 let diam_mm = parseFloat(document.getElementById('av_diameter').value);
                 if (!isNaN(diam_mm) && diam_mm > 0) {
                     let diam_m = diam_mm / 1000;
                     areaM2 = Math.PI * Math.pow(diam_m / 2, 2);
                     hydraulicDiameter = diam_m;
                 } else {
-                    // إذا لم يحدد المستخدم القطر، نحاول استخدام المساحة المباشرة إن كانت متاحة
                     if (useAreaDirect) {
                         let areaVal = parseFloat(document.getElementById('av_area').value);
                         let areaUnit = document.getElementById('av_area_unit').value;
@@ -3301,25 +2580,22 @@ else if (toolId === 'air_velocity') {
             }
             
             velocity_ms = m3s / areaM2;
-        } 
-        else { // mode = size : حساب المقاس المطلوب من السرعة
+        } else {
             let targetVel = parseFloat(document.getElementById('target_velocity').value);
             if (isNaN(targetVel) || targetVel <= 0) {
                 showToast(' أدخل سرعة مستهدفة صحيحة (>0)', 'warning');
                 return;
             }
             velocity_ms = targetVel;
-            resultArea = m3s / velocity_ms;   // المساحة المطلوبة بالمتر المربع
+            resultArea = m3s / velocity_ms;
             
             if (resultArea <= 0 || !isFinite(resultArea)) {
                 showToast(' قيم التدفق أو السرعة تؤدي لمساحة غير منطقية', 'error');
                 return;
             }
             areaM2 = resultArea;
-            // اقتراح أبعاد تقريبية (مستطيل أو قطر)
         }
         
-        // ----- تحذيرات Validation إضافية -----
         if (velocity_ms > 12) {
             showToast('سرعة غير واقعية (>12 م/ث) - أعد النظر في التصميم', 'error');
             return;
@@ -3332,13 +2608,11 @@ else if (toolId === 'air_velocity') {
             }
         }
         
-        // ----- التوصيات والتحذيرات المحسنة -----
         let recommendation = '';
         let noiseWarning = '';
         let pressureWarning = '';
         let smartSuggestion = '';
         
-        // تقييم السرعة
         if (velocity_ms < minOk) {
             recommendation = ` سرعة منخفضة جداً (<${minOk} م/ث) - الدكت أكبر من اللازم، زيادة التكلفة`;
         } else if (velocity_ms <= maxOk) {
@@ -3353,7 +2627,6 @@ else if (toolId === 'air_velocity') {
             pressureWarning = ' فقد ضغط كبير جداً واستهلاك طاقة مرتفع';
         }
         
-        // اقتراح ذكي إذا كانت السرعة عالية جداً
         if (calcMode === 'velocity' && velocity_ms > maxOk + 0.5) {
             let suggestedArea = m3s / maxOk;
             smartSuggestion = ` اقتراح: لتقليل السرعة إلى ${maxOk} م/ث، استخدم مساحة ${round2(suggestedArea)} م²`;
@@ -3370,11 +2643,10 @@ else if (toolId === 'air_velocity') {
             }
         }
         
-        // نتيجة إضافية للوضع size: عرض مقاسات مقترحة
         let sizeResultExtra = '';
         if (calcMode === 'size') {
             let suggestedWidth = Math.sqrt(resultArea);
-            let suggestedHeight = suggestedWidth; // مربع
+            let suggestedHeight = suggestedWidth;
             let diam_m = 2 * Math.sqrt(resultArea / Math.PI);
             sizeResultExtra = `
                 <div class="mt-3 p-2 bg-blue-50 rounded">
@@ -3386,7 +2658,6 @@ else if (toolId === 'air_velocity') {
             `;
         }
         
-        // عرض النتائج الرئيسية
         let resultObj = {
             ' طريقة الحساب': calcMode === 'velocity' ? 'حساب السرعة من الأبعاد' : 'حساب المقاس من السرعة المطلوبة',
             ' معدل التدفق': `${round0(cfm)} CFM (${round0(flow)} ${flowUnit === 'cfm' ? 'CFM' : 'm³/h'})`,
@@ -3395,7 +2666,6 @@ else if (toolId === 'air_velocity') {
             ' شكل الدكت': ductShape === 'rect' ? 'مستطيل' : 'دائري',
         };
         
-        // إضافة hydraulic diameter لو موجود
         if (hydraulicDiameter !== null && hydraulicDiameter > 0) {
             resultObj[' القطر الهيدروليكي (م)'] = round3(hydraulicDiameter);
         }
@@ -3406,7 +2676,6 @@ else if (toolId === 'air_velocity') {
         if (pressureWarning) resultObj[' فقد الضغط التقريبي'] = pressureWarning;
         if (smartSuggestion) resultObj['اقتراح تحسين'] = smartSuggestion;
         
-        // إضافة حقل الأبعاد إن وجدت (فقط في وضع velocity والأبعاد المستخدمة)
         if (calcMode === 'velocity' && ductShape === 'rect') {
             let useAreaDirect = document.getElementById('av_use_area_direct').checked;
             if (!useAreaDirect) {
@@ -3423,14 +2692,11 @@ else if (toolId === 'air_velocity') {
             }
         }
         
-        // دالة round إضافية للدقة
-        function round4(v) { return Math.round(v * 10000) / 10000; }
         function round3(v) { return Math.round(v * 1000) / 1000; }
         
         showFullRes('نتائج تصميم مجرى الهواء', resultObj, sizeResultExtra);
     });
     
-    // ----- ربط أحداث الإظهار والإخفاء بعد تحميل المحتوى -----
     setTimeout(() => {
         const modeSelect = document.getElementById('calc_mode');
         const velocitySection = document.getElementById('mode_velocity_section');
@@ -3441,7 +2707,6 @@ else if (toolId === 'air_velocity') {
         const dimDiv = document.getElementById('av_dimensions_div');
         const areaDiv = document.getElementById('av_area_div');
         
-        // تبديل وضع الحساب (سرعة / مقاس)
         if (modeSelect) {
             const toggleMode = () => {
                 if (modeSelect.value === 'velocity') {
@@ -3457,7 +2722,6 @@ else if (toolId === 'air_velocity') {
             toggleMode();
         }
         
-        // إظهار/إخفاء حقل القطر حسب شكل الدكت
         if (ductShape) {
             const toggleRound = () => {
                 roundSection.style.display = (ductShape.value === 'round') ? 'block' : 'none';
@@ -3467,7 +2731,6 @@ else if (toolId === 'air_velocity') {
             toggleRound();
         }
         
-        // تبديل إدخال المساحة المباشرة ↔ الأبعاد
         if (useAreaCheckbox && dimDiv && areaDiv) {
             const toggleAreaDimensions = () => {
                 if (useAreaCheckbox.checked) {
@@ -3480,24 +2743,22 @@ else if (toolId === 'air_velocity') {
                 clearResult();
             };
             useAreaCheckbox.addEventListener('change', toggleAreaDimensions);
-            toggleAreaDimensions(); // تشغيل أولي
+            toggleAreaDimensions();
         }
         
-        // ربط مسح النتيجة عند تغيير أي من حقول الإدخال الرئيسية
         const inputs = ['av_flow', 'av_flow_unit', 'project_type', 'av_air_type', 'duct_shape', 'av_width', 'av_height', 'av_area', 'av_area_unit', 'av_diameter', 'target_velocity'];
         inputs.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', clearResult);
         });
     }, 50);
+    return;
 }
-    
-    
-    else if (toolId === 'pressure_diagnosis') {
+
+else if (toolId === 'pressure_diagnosis') {
     title.innerText = ' تشخيص الضغوط والكهرباء';
     const refrigerants = Object.keys(refPTData);
     
-    // حدود مرجعية للفريونات (نسبة الضغط العالية)
     const refLimits = {
         'R22': { ratioHigh: 5.5, ratioVeryHigh: 6.2 },
         'R410A': { ratioHigh: 7.0, ratioVeryHigh: 8.0 },
@@ -3523,10 +2784,8 @@ else if (toolId === 'air_velocity') {
         
         const limits = getRefLimits(ref);
         
-        // مصفوفة التشخيصات (مع权重)
         let diagnoses = [];
         
-        // 1. أعطال الشحن (مع权重)
         if (pressureRatio > limits.ratioVeryHigh && superheat > 12 && subcool < 3 && suction < 60) {
             diagnoses.push({ text: 'نقص حاد في شحنة الفريون', weight: 10, reasons: ['نسبة ضغط عالية جداً + حرارة محمصة مرتفعة + تبريد تحت التبريد شبه معدوم'], steps: ['كشف تسريب الفريون بالكاشف أو الصابون، إصلاح التسريب، ثم شحن النظام حسب الكتالوج'] });
         }
@@ -3540,7 +2799,6 @@ else if (toolId === 'air_velocity') {
             diagnoses.push({ text: ' زيادة طفيفة في الشحنة', weight: 6, reasons: ['زيادة الشحنة تؤدي إلى انخفاض السوبرهيت ورفع ضغط الطرد'], steps: ['تفريغ بسيط (5-10%) وإعادة قياس السوبرهيت'] });
         }
         
-        // 2. أعطال الكابلري / TXV (مع وزن وتمييز حسب النظام)
         if (systemType === 'capillary') {
             if (pressureRatio < 2.8 && superheat > 18 && subcool > 12 && suction < 40) {
                 diagnoses.push({ text: ' انسداد شبه كامل في الأنبوبة الشعرية أو فلتر الدراير', weight: 10, reasons: ['ضغط سحب منخفض جداً، حرارة محمصة عالية، تبريد تحت تبريد مرتفع'], steps: ['تفقد الفلتر دراير - إذا كان بارداً من جهة وساخناً من أخرى فهو مسدود، استبدله مع تنظيف الأنبوبة'] });
@@ -3548,7 +2806,7 @@ else if (toolId === 'air_velocity') {
             else if (pressureRatio < 3.2 && superheat > 14 && subcool > 10) {
                 diagnoses.push({ text: ' انسداد جزئي في الكابلري أو الفلتر', weight: 8, reasons: ['نسبة ضغط منخفضة نسبياً مع سوبرهيت عالي وسوبكول متوسط إلى مرتفع'], steps: ['قياس درجة حرارة الفلتر دراير - فارق حرارة > 3°C يدل على انسداد، غيّره'] });
             }
-        } else { // TXV
+        } else {
             if (superheat < 2 && subcool > 14 && pressureDiff > 220) {
                 diagnoses.push({ text: ' صمام تمدد حراري TXV عالق في وضع مفتوح بالكامل أو حساسه منفصل', weight: 9, reasons: ['سوبرهيت شبه معدوم (خطر رجوع سائل) مع سوبكول مرتفع'], steps: ['افحص حساس TXV، نظف رأس الصمام، إذا لم يتحسن فاستبدل الصمام'] });
             }
@@ -3557,7 +2815,6 @@ else if (toolId === 'air_velocity') {
             }
         }
         
-        // 3. أعطال المبادلات الحرارية
         if (evapTemp < -5 && superheat < 4) {
             diagnoses.push({ text: ' تجمد المبخر بسبب ضعف تدفق الهواء أو عطل مروحة', weight: 8, reasons: [`درجة تبخير ${evapTemp.toFixed(1)}°C أقل من نقطة التجمد وسوبرهيت منخفض جداً`], steps: ['نظف فلتر الهواء، تأكد من عمل المروحة، ارفع الإعداد الحراري مؤقتاً'] });
         }
@@ -3565,7 +2822,6 @@ else if (toolId === 'air_velocity') {
             diagnoses.push({ text: ' حمل حراري عالٍ جداً على المبخر (غاز ساخن عائد)', weight: 7, reasons: ['درجة تبخير مرتفعة (>12°C) وسوبرهيت شبه منخفض'], steps: ['تأكد من عدم وجود فتحات تهوية غريبة، فحص حجم المبخر'] });
         }
         
-        // condSplit محسّن
         if (condSplit > 20) {
             diagnoses.push({ text: 'مكثف متسخ أو مروحة ضعيفة (اتساخ شديد)', weight: 8, reasons: [`فرق حرارة التكثيف ${condSplit.toFixed(1)}°C > 20 (طبيعي <15)`], steps: ['نظف المكثف بالماء والضغط، وتأكد من دوران المروحة بالاتجاه الصحيح'] });
         }
@@ -3573,12 +2829,10 @@ else if (toolId === 'air_velocity') {
             diagnoses.push({ text: ' بداية اتساخ المكثف أو ضعف طفيف في المراوح', weight: 5, reasons: [`فرق حرارة التكثيف ${condSplit.toFixed(1)}°C بين 15 و20`], steps: ['افحص نظافة المكثف، اختبر تيار المروحة'] });
         }
         
-        // 4. أعطال الضاغط
         if ((suction > 75 && discharge < 180) || (pressureRatio < 2.5 && discharge < 170)) {
             diagnoses.push({ text: ' ضعف كفاءة الضاغط (تآكل الصمامات الداخلية)', weight: 9, reasons: ['ضغط سحب مرتفع وضغط طرد منخفض - لا يبني فرق ضغط كاف'], steps: ['افحص الضاغط عن طريق اختبار الأمبير والمقارنة مع RLA، قياس ضغط الزيت، استبدل الضاغط إذا لزم الأمر'] });
         }
         
-        // ربط التيار بالضغوط
         if (!isNaN(rla) && rla > 0) {
             if (current > rla * 1.25) {
                 if (condTemp > 50) {
@@ -3595,7 +2849,6 @@ else if (toolId === 'air_velocity') {
             }
         }
         
-        // 5. هواء ورطوبة
         if (discharge > 400 && subcool > 18 && condSplit > 25) {
             diagnoses.push({ text: 'وجود هواء أو غازات غير قابلة للتكثيف في الدائرة', weight: 9, reasons: ['ضغط طرد مرتفع جداً مع سوبكول عالي وفرق تكثيف كبير'], steps: ['قم بتفريغ النظام بالكامل، عمل فاكيوم عميق، ثم إعادة شحن الفريون'] });
         }
@@ -3603,27 +2856,22 @@ else if (toolId === 'air_velocity') {
             diagnoses.push({ text: ' رطوبة في الدائرة (تتجمد في صمام التمدد)', weight: 8, reasons: ['سوبرهيت يتذبذب وسوبكول مرتفع - مؤشر على تجمد جزئي'], steps: ['استبدل فلتر الدراير بآخر مزيل رطوبة، ثم فاكيوم طويل'] });
         }
         
-        // 6. مشاكل تدفق الهواء على المبخر
         if (suction < 25 && superheat > 18 && (condTemp - ambient) < 12) {
             diagnoses.push({ text: ' ضعف تدفق الهواء على المبخر أو مبخر متجمد', weight: 7, reasons: ['ضغط سحب منخفض + سوبرهيت مرتفع + تكثيف طبيعي'], steps: ['افحص مراوح المبخر، ازالة الجليد، تنظيف الفلاتر'] });
         }
         
-        // 7. أعطال كهربائية أخرى (عدم توازن فازات)
         if (current > 0 && (suction > 50 && discharge > 200 && pressureRatio < 4.5 && superheat > 8 && subcool < 6)) {
             diagnoses.push({ text: ' عدم توازن الفازات (ثلاثة فاز) أو انخفاض الجهد', weight: 7, reasons: ['ضغوط شبه طبيعية لكن التيار مرتفع'], steps: ['قياس الفولت بين الفازات، يجب ألا يزيد الفرق عن 2%، تحسين التغذية الكهربائية'] });
         }
         
-        // 8. صمام رباعي
         if (discharge - suction < 70 && discharge > 150 && suction > 50) {
             diagnoses.push({ text: ' خلل في صمام الانعكاس (رباعي الاتجاه)', weight: 8, reasons: ['فرق ضغط منخفض بين الطرد والسحب على الرغم من وجود ضغوط متوسطة'], steps: ['اختبر الصمام بالقرع عليه، قد يكون عالقاً، بدّل ملف الصمام أو الصمام نفسه'] });
         }
         
-        // إذا لم يوجد أي تشخيص
         if (diagnoses.length === 0) {
             diagnoses.push({ text: ' النظام يعمل بشكل طبيعي', weight: 0, reasons: ['جميع القراءات ضمن النطاقات الطبيعية'], steps: ['لا توجد إجراءات مطلوبة، يمكن إجراء صيانة دورية'] });
         }
         
-        // ترتيب حسب الوزن وأخذ الأفضل
         diagnoses.sort((a, b) => b.weight - a.weight);
         const top = diagnoses[0];
         const otherDiags = diagnoses.slice(1).map(d => d.text).filter(t => t !== top.text);
@@ -3669,33 +2917,31 @@ else if (toolId === 'air_velocity') {
         }
         
         const resultObj = {
-    'تنبيه': 'هذا التشخيص استرشادي قد لا يكون دقيقاً بنسبة 100%، يُفضل استخدامه كمرجع أولي.',
-    'الفريون': ref,
-    'اداة التمدد': systemType === 'txv' ? 'TXV' : 'كابلري',
-    'ضغط السحب (PSI)': suction.toFixed(1),
-    'ضغط الطرد (PSI)': discharge.toFixed(1),
-    'نسبة الضغط': result.pressureRatio.toFixed(2),
-    'درجة التبخير (محسوبة)': result.evapTemp.toFixed(1) + ' °C',
-    'درجة التكثيف (محسوبة)': result.condTemp.toFixed(1) + ' °C',
-    'فرق حرارة التكثيف': result.condSplit.toFixed(1) + ' °C',
-    'Superheat (حرارة محمصة)': result.superheat.toFixed(1) + ' °C',
-    'Subcooling (تبريد تحت تبريد)': result.subcool.toFixed(1) + ' °C',
-    'فرق ضغط (طرد - سحب)': result.pressureDiff.toFixed(1) + ' PSI',
-    'تيار الضاغط': current.toFixed(1) + ' A' + (rla > 0 ? ` (RLA=${rla})` : ''),
-    ' التشخيص الرئيسي': result.topDiagnosis,
-    ' الأسباب المحتملة': result.topReasons,
-    ' الإجراءات والحلول': result.topSteps
-};
-
-// إضافة الخاصية فقط إذا كانت موجودة
-if (result.otherDiagnoses !== 'لا يوجد') {
-    resultObj['تشخيصات أخرى محتملة'] = result.otherDiagnoses;
-}
-
-showFullRes(' تقرير تشخيص ضغوط وكهرباء النظام', resultObj);
+            'تنبيه': 'هذا التشخيص استرشادي قد لا يكون دقيقاً بنسبة 100%، يُفضل استخدامه كمرجع أولي.',
+            'الفريون': ref,
+            'اداة التمدد': systemType === 'txv' ? 'TXV' : 'كابلري',
+            'ضغط السحب (PSI)': suction.toFixed(1),
+            'ضغط الطرد (PSI)': discharge.toFixed(1),
+            'نسبة الضغط': result.pressureRatio.toFixed(2),
+            'درجة التبخير (محسوبة)': result.evapTemp.toFixed(1) + ' °C',
+            'درجة التكثيف (محسوبة)': result.condTemp.toFixed(1) + ' °C',
+            'فرق حرارة التكثيف': result.condSplit.toFixed(1) + ' °C',
+            'Superheat (حرارة محمصة)': result.superheat.toFixed(1) + ' °C',
+            'Subcooling (تبريد تحت تبريد)': result.subcool.toFixed(1) + ' °C',
+            'فرق ضغط (طرد - سحب)': result.pressureDiff.toFixed(1) + ' PSI',
+            'تيار الضاغط': current.toFixed(1) + ' A' + (rla > 0 ? ` (RLA=${rla})` : ''),
+            ' التشخيص الرئيسي': result.topDiagnosis,
+            ' الأسباب المحتملة': result.topReasons,
+            ' الإجراءات والحلول': result.topSteps
+        };
+        
+        if (result.otherDiagnoses !== 'لا يوجد') {
+            resultObj['تشخيصات أخرى محتملة'] = result.otherDiagnoses;
+        }
+        
+        showFullRes(' تقرير تشخيص ضغوط وكهرباء النظام', resultObj);
     };
     
-    // واجهة المستخدم
     document.getElementById('modalBody').innerHTML = `
         <div class="grid gap-3" dir="rtl">
             <div class="flex flex-wrap gap-3">
@@ -3715,7 +2961,7 @@ showFullRes(' تقرير تشخيص ضغوط وكهرباء النظام', resul
                 <div class="flex-1 min-w-[100px]"><label class="block text-sm font-semibold">تيار الضاغط (A)</label><input type="number" step="any" id="diag_current" value="8"></div>
                 <div class="flex-1 min-w-[130px]"><label class="block text-sm font-semibold">RLA (اختياري)</label><input type="number" step="any" id="diag_rla" placeholder="مثل 10.5"></div>
             </div>
-           </div>
+        </div>
     `;
     
     document.getElementById('resultDisplay').classList.add('hidden');
@@ -3727,63 +2973,30 @@ showFullRes(' تقرير تشخيص ضغوط وكهرباء النظام', resul
         input.addEventListener('change', clearResult);
     });
     
-    
     if (calcBtn) {
         calcBtn.onclick = null;
         calcBtn.onclick = () => withLoading(calcBtn, performDiagnosis);
         calcBtn.style.display = 'flex';
     }
+    return;
 }
-// ================= أداة حساب التهوية وتحديد سعة المراوح (Pro Max v2) =================
+
 else if (toolId === 'ventilation') {
     title.innerText = ' حساب التهوية وتحديد سعة المراوح ';
-
-    // -------------------- الثوابت المحسنة --------------------
+    
     const M3H_TO_CFM = 0.588577;
     const DEFAULT_FAN_EFF = 0.65;
-    const STANDARD_AIR_DENSITY_20C = 1.204;   // kg/m³ عند 20°C
-    const SYSTEM_EFFECT_FACTOR = 1.1;         // يعوض الاضطرابات وخسائر الدخول/الخروج
-    const PRESSURE_MARGIN = 20;               // Pa احتياطي للتسخ أو زيادة الفواقد مستقبلاً
+    const STANDARD_AIR_DENSITY_20C = 1.204;
+    const SYSTEM_EFFECT_FACTOR = 1.1;
+    const PRESSURE_MARGIN = 20;
     
-    // أنواع الأماكن المحسنة
-    const SPACE_TYPES = {
-        'living':     { name: 'غرفة معيشة / نوم', ach_min: 4, ach_max: 6, default_ach: 5, category: 'residential' },
-        'office':     { name: 'مكتب / إداري', ach_min: 6, ach_max: 8, default_ach: 7, category: 'commercial' },
-        'kitchen_home': { name: 'مطبخ منزلي', ach_min: 12, ach_max: 18, default_ach: 15, category: 'residential' },
-        'kitchen_rest': { name: 'مطبخ مطعم / كافيتيريا', ach_min: 25, ach_max: 40, default_ach: 30, category: 'commercial' },
-        'kitchen_ind':  { name: 'مطبخ صناعي (مطاعم كبيرة)', ach_min: 40, ach_max: 60, default_ach: 50, category: 'industrial' },
-        'bath_home':  { name: 'حمام منزلي', ach_min: 8, ach_max: 12, default_ach: 10, category: 'residential' },
-        'bath_pub':   { name: 'حمام عام (مول، محطة)', ach_min: 15, ach_max: 25, default_ach: 20, category: 'commercial' },
-        'workshop_light': { name: 'ورشة خفيفة (نجارة، ميكانيكا)', ach_min: 10, ach_max: 15, default_ach: 12, category: 'industrial' },
-        'workshop_heavy': { name: 'ورشة ثقيلة (دهان، لحام، كيماويات)', ach_min: 20, ach_max: 30, default_ach: 25, category: 'industrial' },
-        'warehouse_dry': { name: 'مخزن جاف (مواد جافة)', ach_min: 4, ach_max: 6, default_ach: 5, category: 'commercial' },
-        'warehouse_cold':{ name: 'مخزن مبرد / تبريد', ach_min: 10, ach_max: 20, default_ach: 15, category: 'industrial' },
-        'parking':    { name: 'جراج / موقف سيارات مغلق', ach_min: 6, ach_max: 10, default_ach: 8, category: 'commercial' }
-    };
-    
-    // خسائر الفلاتر
-    const FILTER_LOSS_RANGE = {
-        'none': { min: 0, max: 0, default: 0 },
-        'standard': { min: 30, max: 80, default: 55 },
-        'hepa': { min: 100, max: 250, default: 175 }
-    };
-    
-    // معامل الاحتكاك (f) ثابت حسب نوع الدكت - دقة عملية ممتازة
-    const DUCT_FRICTION_FACTOR = {
-        'rigid': 0.02,      // صاج مجلفن أملس
-        'flexible': 0.04    // فليكس (مرن)
-    };
-    
-    // سرعات هواء افتراضية حسب فئة المكان
-    const ASSUMED_VELOCITY_BY_CATEGORY = {
-        'residential': 3.0,
-        'commercial': 5.0,
-        'industrial': 7.0
-    };
+    const SPACE_TYPES = TOOL_CONSTANTS.spaceTypes;
+    const FILTER_LOSS_RANGE = TOOL_CONSTANTS.filterLossRange;
+    const DUCT_FRICTION_FACTOR = TOOL_CONSTANTS.ductFrictionFactor;
+    const ASSUMED_VELOCITY_BY_CATEGORY = TOOL_CONSTANTS.assumedVelocityByCategory;
     
     let activeMode = 'simple';
     
-    // -------------------- دوال حسابية محسنة --------------------
     function calculateVolume(length, width, height) {
         if (isNaN(length) || isNaN(width) || isNaN(height)) return NaN;
         return length * width * height;
@@ -3794,14 +3007,12 @@ else if (toolId === 'ventilation') {
         return volume_m3 * ach;
     }
     
-    // كثافة الهواء كدالة في درجة الحرارة
     function getAirDensity(tempCelsius) {
         if (isNaN(tempCelsius)) return STANDARD_AIR_DENSITY_20C;
         let density = 1.204 - (tempCelsius - 20) * 0.004;
         return Math.max(density, 1.05);
     }
     
-    // سرعة هواء مفترضة حسب نوع المكان
     function getAssumedVelocityBySpace(spaceTypeKey) {
         if (spaceTypeKey && SPACE_TYPES[spaceTypeKey]) {
             let cat = SPACE_TYPES[spaceTypeKey].category;
@@ -3810,7 +3021,6 @@ else if (toolId === 'ventilation') {
         return 4.0;
     }
     
-    // حساب فقد المجرى (Darcy-Weisbach مع f ثابت)
     function calculateDuctLoss(flow_m3h, ductDiameter_mm, ductLength_m, ductType, rho) {
         if (ductLength_m <= 0 || ductDiameter_mm <= 0) return 0;
         let Q_m3s = flow_m3h / 3600;
@@ -3824,7 +3034,6 @@ else if (toolId === 'ventilation') {
         return Math.max(dp, 0);
     }
     
-    // حساب خسائر الأكواع (مع K متغير حسب نوع الدكت)
     function calculateElbowLoss(elbowsCount, velocity_m_s, ductType, rho) {
         if (elbowsCount <= 0) return 0;
         let K_elbow = (ductType === 'flexible') ? 1.2 : 0.75;
@@ -3832,12 +3041,10 @@ else if (toolId === 'ventilation') {
         return elbowsCount * K_elbow * dynamicPressure;
     }
     
-    // حساب المعاملات المتقدمة مع تطبيق الأمان على Q فقط
     function calculateAdvancedParams(Q_m3h_safe, ductLength_m, ductDiameter_mm, elbowsCount, filterValue, ductType, spaceTypeKey, ambientTemp) {
-        let Q_m3s = Q_m3h_safe / 3600;   // هنا Q_m3h_safe مطبق عليه معامل الأمان بالفعل
+        let Q_m3s = Q_m3h_safe / 3600;
         let rho = getAirDensity(ambientTemp);
         
-        // تقدير السرعة والقطر إن لزم
         let velocity = 0;
         let usedDiameter = ductDiameter_mm;
         if (usedDiameter > 0) {
@@ -3851,34 +3058,17 @@ else if (toolId === 'ventilation') {
             velocity = assumedVel;
         }
         
-        // فقد المجرى
         let ductLoss = calculateDuctLoss(Q_m3h_safe, usedDiameter, ductLength_m, ductType, rho);
-        
-        // فقد الأكواع
         let elbowLoss = calculateElbowLoss(elbowsCount, velocity, ductType, rho);
-        
-        // فقد الفلتر
         let filterLoss = filterValue;
-        
-        // الضغط الاستاتيكي الكلي + هامش الأمان (20 Pa)
         let staticPressure = ductLoss + elbowLoss + filterLoss + PRESSURE_MARGIN;
         staticPressure = Math.max(staticPressure, 0);
-        
-        // حساب القدرة (مع تطبيق System Effect Factor)
         let fanPowerWatts = (staticPressure * Q_m3s) / DEFAULT_FAN_EFF;
         fanPowerWatts = fanPowerWatts * SYSTEM_EFFECT_FACTOR;
         
-        return {
-            staticPressure,
-            fanPowerWatts,
-            velocity,
-            ductLoss,
-            elbowLoss,
-            usedDiameter
-        };
+        return { staticPressure, fanPowerWatts, velocity, ductLoss, elbowLoss, usedDiameter };
     }
     
-    // اختيار نوع المروحة
     function recommendFanType(Q_m3h, staticPressure_Pa) {
         let Q_m3s = Q_m3h / 3600;
         if (staticPressure_Pa < 60) {
@@ -3893,9 +3083,7 @@ else if (toolId === 'ventilation') {
         }
     }
     
-    // -------------------- دالة الحساب الرئيسية --------------------
     const calculateVentilation = () => {
-        // قراءة المدخلات الأساسية
         let length = parseFloat(document.getElementById('vent_length')?.value);
         let width = parseFloat(document.getElementById('vent_width')?.value);
         let height = parseFloat(document.getElementById('vent_height')?.value);
@@ -3916,7 +3104,6 @@ else if (toolId === 'ventilation') {
             volume = calculateVolume(length, width, height);
         }
         
-        // قراءة ACH
         let spaceType = document.getElementById('vent_space_type')?.value;
         let achMode = document.querySelector('input[name="vent_ach_mode"]:checked')?.value;
         let ach = 0;
@@ -3930,19 +3117,16 @@ else if (toolId === 'ventilation') {
             }
         }
         
-        // معامل الأمان (يطبق على Q فقط)
         let safety = parseFloat(document.getElementById('vent_safety')?.value);
         if (isNaN(safety) || safety < 1.0) safety = 1.0;
         if (safety > 1.5) safety = 1.5;
         
-        // درجة الحرارة المحيطة
         let ambientTemp = parseFloat(document.getElementById('vent_ambient_temp')?.value);
         if (isNaN(ambientTemp)) ambientTemp = 20;
         ambientTemp = Math.min(Math.max(ambientTemp, -10), 50);
         
         let mode = document.querySelector('#modalBody .phase-option.selected[data-vent-mode]')?.dataset.ventMode || 'simple';
         
-        // حساب Q الأساسي
         let Q_m3h = calculateAirflow(volume, ach);
         if (isNaN(Q_m3h) || Q_m3h <= 0) {
             showToast('قيم غير صالحة للحساب', 'error');
@@ -3950,7 +3134,6 @@ else if (toolId === 'ventilation') {
         }
         let Q_cfm = Q_m3h * M3H_TO_CFM;
         
-        // تطبيق معامل الأمان على Q فقط
         let Q_safe_m3h = Q_m3h * safety;
         let Q_safe_cfm = Q_safe_m3h * M3H_TO_CFM;
         
@@ -3973,7 +3156,6 @@ else if (toolId === 'ventilation') {
         }
         
         if (mode === 'advanced') {
-            // قراءة المعاملات المتقدمة
             let ductLength = parseFloat(document.getElementById('vent_duct_length')?.value) || 0;
             let ductDiameter = parseFloat(document.getElementById('vent_duct_diameter')?.value) || 0;
             let elbows = parseInt(document.getElementById('vent_elbows')?.value) || 0;
@@ -3992,11 +3174,7 @@ else if (toolId === 'ventilation') {
                 filterValue = range.default;
             }
             
-            // حساب المعاملات المتقدمة (Q_safe_m3h تم تطبيق الأمان عليه)
-            let adv = calculateAdvancedParams(
-                Q_safe_m3h, ductLength, ductDiameter, elbows, filterValue, ductType, spaceType, ambientTemp
-            );
-            
+            let adv = calculateAdvancedParams(Q_safe_m3h, ductLength, ductDiameter, elbows, filterValue, ductType, spaceType, ambientTemp);
             let fanType = recommendFanType(Q_safe_m3h, adv.staticPressure);
             let airDensity = getAirDensity(ambientTemp);
             
@@ -4004,7 +3182,7 @@ else if (toolId === 'ventilation') {
             results['كثافة الهواء المستخدمة'] = `${airDensity.toFixed(3)} kg/m³`;
             results['طول مجرى الهواء (م)'] = ductLength.toFixed(1);
             results['قطر الدكت (مم)'] = (ductDiameter > 0) ? ductDiameter.toFixed(0) : `${adv.usedDiameter.toFixed(0)} (مُقدَّر)`;
-            results['القطر المقترح للدكت (مم)'] = adv.usedDiameter.toFixed(0);  // ميزة جديدة
+            results['القطر المقترح للدكت (مم)'] = adv.usedDiameter.toFixed(0);
             results['سرعة الهواء الفعلية (م/ث)'] = adv.velocity.toFixed(2);
             results['عدد الأكواع'] = elbows;
             results['نوع الدكت'] = ductType === 'rigid' ? 'صاج صلب' : 'فليكس (مرن)';
@@ -4019,12 +3197,10 @@ else if (toolId === 'ventilation') {
             results['القدرة التقريبية للمروحة (واط)'] = adv.fanPowerWatts.toFixed(0);
             results['نوع المروحة الموصى به'] = fanType;
             
-            // تحذير ذكي: طول دكت كبير مع قطر صغير
             if (ductLength > 30 && adv.usedDiameter < 200) {
                 warnings.push(` طول الدكت كبير (${ductLength} م) مع قطر صغير (${adv.usedDiameter.toFixed(0)} مم) → فقد ضغط عالي جدًا، يفضل زيادة القطر إلى ${Math.min(Math.round(adv.usedDiameter * 1.3), 500)} مم على الأقل.`);
             }
             
-            // تحذيرات إضافية
             let recVel = getAssumedVelocityBySpace(spaceType);
             if (adv.velocity < recVel * 0.7) warnings.push(` سرعة الهواء (${adv.velocity.toFixed(1)} م/ث) أقل من المثالية لنوع المكان (~${recVel} م/ث) – قد تحتاج قطر أصغر.`);
             if (adv.velocity > recVel * 1.5) warnings.push(` سرعة الهواء (${adv.velocity.toFixed(1)} م/ث) أعلى من المثالية لنوع المكان (~${recVel} م/ث) – ضوضاء وفقد ضغط كبير.`);
@@ -4041,7 +3217,6 @@ else if (toolId === 'ventilation') {
         showFullRes(' نتائج حساب التهوية والمروحة (Pro Max v2)', results);
     };
     
-    // -------------------- بناء واجهة المستخدم --------------------
     const renderUI = () => {
         const isAdvanced = (activeMode === 'advanced');
         const spaceTypesOptions = Object.entries(SPACE_TYPES).map(([key, val]) => 
@@ -4074,7 +3249,7 @@ else if (toolId === 'ventilation') {
                 </div>
                 
                 <div>
-                    <label>قيم ACU حسب المكان </label>
+                    <label>قيم ACH حسب المكان </label>
                     <select id="vent_space_type" class="w-full">
                         <option value="">-- اختر نوع المكان (إن أردت) --</option>
                         ${spaceTypesOptions}
@@ -4082,20 +3257,20 @@ else if (toolId === 'ventilation') {
                 </div>
                 
                 <div>
-    <label>طريقة إدخال ACH (عدد مرات تغيير الهواء في الساعة)</label>
-    <div class="flex gap-2">
-        <label class="flex-1 text-center"><input type="radio" name="vent_ach_mode" class ="inpchk" value="auto" checked> تلقائي</label>
-        <label class="flex-1 text-center"><input type="radio" name="vent_ach_mode" class ="inpchk" value="manual"> إدخال يدوي</label>
-    </div>
-    <div id="vent_ach_manual_container" style="display: none;">
-        <input type="number" step="any" id="vent_ach_manual" placeholder="أدخل ACH يدوياً" class="w-full mt-1">
-    </div>
-</div>
+                    <label>طريقة إدخال ACH (عدد مرات تغيير الهواء في الساعة)</label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 text-center"><input type="radio" name="vent_ach_mode" class="inpchk" value="auto" checked> تلقائي</label>
+                        <label class="flex-1 text-center"><input type="radio" name="vent_ach_mode" class="inpchk" value="manual"> إدخال يدوي</label>
+                    </div>
+                    <div id="vent_ach_manual_container" style="display: none;">
+                        <input type="number" step="any" id="vent_ach_manual" placeholder="أدخل ACH يدوياً" class="w-full mt-1">
+                    </div>
+                </div>
                 
                 <div>
                     <label>معامل الأمان (يطبق على التدفق فقط - 1.0 إلى 1.5)</label>
                     <input type="number" step="0.05" id="vent_safety" value="1.1" class="w-full">
-                    </div>
+                </div>
         `;
         
         if (isAdvanced) {
@@ -4140,7 +3315,6 @@ else if (toolId === 'ventilation') {
         setContent(html, null);
         
         setTimeout(() => {
-            // تبديل الحجم المباشر
             const useVolumeChk = document.getElementById('vent_use_volume');
             const dimDiv = document.getElementById('vent_dimensions_div');
             const volDiv = document.getElementById('vent_volume_div');
@@ -4157,55 +3331,47 @@ else if (toolId === 'ventilation') {
                 };
             }
             
-            // تبديل وضع Achh
             const autoRadio = document.querySelector('input[name="vent_ach_mode"][value="auto"]');
-const manualRadio = document.querySelector('input[name="vent_ach_mode"][value="manual"]');
-const manualAchContainer = document.getElementById('vent_ach_manual_container');
-const manualAchInput = document.getElementById('vent_ach_manual');
-const spaceTypeSelect = document.getElementById('vent_space_type');
-
-const updateAchMode = () => {
-    if (autoRadio && autoRadio.checked) {
-        // إخفاء مربع الإدخال اليدوي
-        if (manualAchContainer) manualAchContainer.style.display = 'none';
-        // تعيين القيمة التلقائية إذا كان نوع المكان محدداً
-        if (spaceTypeSelect && spaceTypeSelect.value && SPACE_TYPES[spaceTypeSelect.value]) {
-            manualAchInput.value = SPACE_TYPES[spaceTypeSelect.value].default_ach;
-        } else {
-            manualAchInput.value = '';
-        }
-    } else if (manualRadio && manualRadio.checked) {
-        // إظهار مربع الإدخال اليدوي
-        if (manualAchContainer) manualAchContainer.style.display = 'block';
-        // تفريغ القيمة إذا كانت مساوية للقيمة التلقائية
-        const currentValue = parseFloat(manualAchInput.value);
-        const autoValue = (spaceTypeSelect && spaceTypeSelect.value && SPACE_TYPES[spaceTypeSelect.value])
-                            ? SPACE_TYPES[spaceTypeSelect.value].default_ach
-                            : null;
-        if (manualAchInput.value === '' || (autoValue !== null && currentValue === autoValue)) {
-            manualAchInput.value = '';
-        }
-    }
-    clearResult();
-};
-
-// ربط الأحداث
-if (autoRadio && manualRadio) {
-    autoRadio.addEventListener('change', updateAchMode);
-    manualRadio.addEventListener('change', updateAchMode);
-}
-if (spaceTypeSelect) {
-    spaceTypeSelect.addEventListener('change', () => {
-        if (autoRadio && autoRadio.checked && spaceTypeSelect.value && SPACE_TYPES[spaceTypeSelect.value]) {
-            manualAchInput.value = SPACE_TYPES[spaceTypeSelect.value].default_ach;
-        }
-        clearResult();
-    });
-}
-// استدعاء أولي
-updateAchMode();
+            const manualRadio = document.querySelector('input[name="vent_ach_mode"][value="manual"]');
+            const manualAchContainer = document.getElementById('vent_ach_manual_container');
+            const manualAchInput = document.getElementById('vent_ach_manual');
+            const spaceTypeSelect = document.getElementById('vent_space_type');
             
-            // إظهار/إخفاء حقل الفلتر اليدوي
+            const updateAchMode = () => {
+                if (autoRadio && autoRadio.checked) {
+                    if (manualAchContainer) manualAchContainer.style.display = 'none';
+                    if (spaceTypeSelect && spaceTypeSelect.value && SPACE_TYPES[spaceTypeSelect.value]) {
+                        manualAchInput.value = SPACE_TYPES[spaceTypeSelect.value].default_ach;
+                    } else {
+                        manualAchInput.value = '';
+                    }
+                } else if (manualRadio && manualRadio.checked) {
+                    if (manualAchContainer) manualAchContainer.style.display = 'block';
+                    const currentValue = parseFloat(manualAchInput.value);
+                    const autoValue = (spaceTypeSelect && spaceTypeSelect.value && SPACE_TYPES[spaceTypeSelect.value])
+                                        ? SPACE_TYPES[spaceTypeSelect.value].default_ach
+                                        : null;
+                    if (manualAchInput.value === '' || (autoValue !== null && currentValue === autoValue)) {
+                        manualAchInput.value = '';
+                    }
+                }
+                clearResult();
+            };
+            
+            if (autoRadio && manualRadio) {
+                autoRadio.addEventListener('change', updateAchMode);
+                manualRadio.addEventListener('change', updateAchMode);
+            }
+            if (spaceTypeSelect) {
+                spaceTypeSelect.addEventListener('change', () => {
+                    if (autoRadio && autoRadio.checked && spaceTypeSelect.value && SPACE_TYPES[spaceTypeSelect.value]) {
+                        manualAchInput.value = SPACE_TYPES[spaceTypeSelect.value].default_ach;
+                    }
+                    clearResult();
+                });
+            }
+            updateAchMode();
+            
             const filterSelect = document.getElementById('vent_filter');
             const filterManualDiv = document.getElementById('vent_filter_manual_div');
             if (filterSelect && filterManualDiv) {
@@ -4216,7 +3382,6 @@ updateAchMode();
                 if (filterSelect.value === 'manual') filterManualDiv.style.display = 'block';
             }
             
-            // ربط أزرار التبديل بين الوضعين
             const simpleBtn = document.getElementById('ventModeSimple');
             const advancedBtn = document.getElementById('ventModeAdvanced');
             if (simpleBtn && advancedBtn) {
@@ -4230,7 +3395,6 @@ updateAchMode();
                 };
             }
             
-            // ربط مسح النتيجة
             const allInputs = document.querySelectorAll('#modalBody input, #modalBody select');
             allInputs.forEach(inp => {
                 inp.removeEventListener('change', clearResult);
@@ -4239,7 +3403,6 @@ updateAchMode();
                 inp.addEventListener('input', clearResult);
             });
             
-            // ربط زر الحساب
             const calcButton = document.getElementById('calculateBtn');
             if (calcButton) {
                 calcButton.style.display = 'flex';
@@ -4249,1331 +3412,1265 @@ updateAchMode();
     };
     
     renderUI();
+    return;
 }
-//ادوات الكهرباء 
-else if (toolId === 'energy') {
-    title.innerText = ' تكلفة الطاقة (متقدم)';
-    
-    // بيانات الأجهزة الشائعة (واط)
-    const appliances = {
-        'مكيف 1.5 حصان': 1200, 'مكيف 2 حصان': 1600, 'مكيف 3 حصان': 2400,
-        'ثلاجة 14 قدم': 150, 'ثلاجة 18 قدم': 200, 'فريزر': 180,
-        'غسالة (تشغيل)': 500, 'غسالة (تسخين)': 2000, 'نشافة ملابس': 2500,
-        'سخان كهربائي 50 لتر': 2000, 'سخان فوري': 3500, 'خلاط': 400,
-        'ميكروويف': 1200, 'فرن كهربائي': 2000, 'محمصة خبز': 900,
-        'غلاية كهربائية': 2000, 'مكنسة كهربائية': 800, 'مكواة': 1200,
-        'تلفزيون 43 بوصة': 80, 'تلفزيون 55 بوصة': 120, 'ريسيفر': 20,
-        'كمبيوتر مكتبي': 250, 'لابتوب': 60, 'شاشة كمبيوتر': 40,
-        'راوتر واي فاي': 15, 'شاحن موبايل': 10, 'مروحة سقف': 70,
-        'دفاية 2000 واط': 2000, 'مدفأة زيت': 1500, 'سخان مروحة': 2500,
-        'لمبة LED 9 واط': 9, 'لمبة LED 12 واط': 12, 'لمبة موفرة 20 واط': 20
-    };
-    
-    // شرائح الكهرباء المصرية
-    const tiers = [
-        { min: 0, max: 50, price: 0.48, name: 'شريحة 1 (0-50 kWh)' },
-        { min: 51, max: 100, price: 0.58, name: 'شريحة 2 (51-100 kWh)' },
-        { min: 101, max: 200, price: 0.77, name: 'شريحة 3 (101-200 kWh)' },
-        { min: 201, max: 350, price: 1.09, name: 'شريحة 4 (201-350 kWh)' },
-        { min: 351, max: 650, price: 1.42, name: 'شريحة 5 (351-650 kWh)' },
-        { min: 651, max: 1000, price: 1.57, name: 'شريحة 6 (651-1000 kWh)' },
-        { min: 1001, max: Infinity, price: 1.63, name: 'شريحة 7 (أكثر من 1000 kWh)' }
-    ];
-    
-    // دالة تقريب
-    function round2(v) { return Math.round(v * 100) / 100; }
-    
-    // بناء قائمة الأجهزة
-    let applianceOptions = '<option value="">-- اختر جهازاً --</option>';
-    for (let [name, watt] of Object.entries(appliances)) {
-        applianceOptions += `<option value="${name}">${name} (${watt} واط)</option>`;
-    }
-    
-    // واجهة المستخدم (بدون أي تداخل خطير للـ backticks)
-    const html = `
-        <div class="flex gap-2 mb-3">
-            <label class="flex-1">طريقة الإدخال</label>
-            <select id="input_method" class="flex-1">
-                <option value="appliance">اختيار جهاز من القائمة</option>
-                <option value="manual">إدخال القدرة يدوياً</option>
-            </select>
-        </div>
-
-        <div id="appliance_section">
-            <label> نوع الجهاز</label>
-            <select id="appliance_select" class="w-full">${applianceOptions}</select>
-        </div>
-
-        <div id="manual_section" style="display:none">
-            <label> القدرة (واط)</label>
-            <div class="flex gap-2">
-                <input type="number" step="any" id="en_w" value="1000" class="flex-1">
-                <select id="power_unit" class="w-1/3">
-                    <option value="w">واط (W)</option>
-                    <option value="kw">كيلوواط (kW)</option>
-                    <option value="hp">حصان (HP)</option>
+    // ========== أدوات الكهرباء ==========
+    else if (toolId === 'energy') {
+        title.innerText = ' تكلفة الطاقة (متقدم)';
+        
+        const appliances = {
+            'مكيف 1.5 حصان': 1200, 'مكيف 2 حصان': 1600, 'مكيف 3 حصان': 2400,
+            'ثلاجة 14 قدم': 150, 'ثلاجة 18 قدم': 200, 'فريزر': 180,
+            'غسالة (تشغيل)': 500, 'غسالة (تسخين)': 2000, 'نشافة ملابس': 2500,
+            'سخان كهربائي 50 لتر': 2000, 'سخان فوري': 3500, 'خلاط': 400,
+            'ميكروويف': 1200, 'فرن كهربائي': 2000, 'محمصة خبز': 900,
+            'غلاية كهربائية': 2000, 'مكنسة كهربائية': 800, 'مكواة': 1200,
+            'تلفزيون 43 بوصة': 80, 'تلفزيون 55 بوصة': 120, 'ريسيفر': 20,
+            'كمبيوتر مكتبي': 250, 'لابتوب': 60, 'شاشة كمبيوتر': 40,
+            'راوتر واي فاي': 15, 'شاحن موبايل': 10, 'مروحة سقف': 70,
+            'دفاية 2000 واط': 2000, 'مدفأة زيت': 1500, 'سخان مروحة': 2500,
+            'لمبة LED 9 واط': 9, 'لمبة LED 12 واط': 12, 'لمبة موفرة 20 واط': 20
+        };
+        
+        const tiers = [
+            { min: 0, max: 50, price: 0.48, name: 'شريحة 1 (0-50 kWh)' },
+            { min: 51, max: 100, price: 0.58, name: 'شريحة 2 (51-100 kWh)' },
+            { min: 101, max: 200, price: 0.77, name: 'شريحة 3 (101-200 kWh)' },
+            { min: 201, max: 350, price: 1.09, name: 'شريحة 4 (201-350 kWh)' },
+            { min: 351, max: 650, price: 1.42, name: 'شريحة 5 (351-650 kWh)' },
+            { min: 651, max: 1000, price: 1.57, name: 'شريحة 6 (651-1000 kWh)' },
+            { min: 1001, max: Infinity, price: 1.63, name: 'شريحة 7 (أكثر من 1000 kWh)' }
+        ];
+        
+        function round2(v) { return Math.round(v * 100) / 100; }
+        
+        let applianceOptions = '<option value="">-- اختر جهازاً --</option>';
+        for (let [name, watt] of Object.entries(appliances)) {
+            applianceOptions += `<option value="${name}">${name} (${watt} واط)</option>`;
+        }
+        
+        const html = `
+            <div class="flex gap-2 mb-3">
+                <label class="flex-1">طريقة الإدخال</label>
+                <select id="input_method" class="flex-1">
+                    <option value="appliance">اختيار جهاز من القائمة</option>
+                    <option value="manual">إدخال القدرة يدوياً</option>
                 </select>
             </div>
-        </div>
 
-        <label> ساعات التشغيل اليومية</label>
-        <div class="flex gap-2">
-            <input type="number" step="any" id="en_h" value="8" class="flex-1">
-            <select id="days_unit" class="w-1/3">
-                <option value="day">يومياً</option>
-                <option value="week">أسبوعياً</option>
-                <option value="month">شهرياً</option>
-            </select>
-        </div>
-
-        <label> سعر الكهرباء</label>
-        <div class="flex gap-2 mb-2">
-            <select id="price_type" class="w-1/2">
-                <option value="fixed">سعر ثابت</option>
-                <option value="tier">شرائح الكهرباء (مصر)</option>
-            </select>
-            <div id="fixed_price_div" class="flex-1 flex gap-2">
-                <input type="number" step="any" id="en_p" value="1.5" class="w-full">
-                <span class="text-xs self-center">ج.م/kWh</span>
+            <div id="appliance_section">
+                <label> نوع الجهاز</label>
+                <select id="appliance_select" class="w-full">${applianceOptions}</select>
             </div>
-        </div>
 
-        <div id="tier_div" style="display:none">
-            <label>الاستهلاك الشهري الإجمالي للمنزل (kWh)</label>
-            <input type="number" step="any" id="monthly_kwh" value="300" class="w-full">
-            <div class="text-xs text-gray-500">يُستخدم لتحديد الشريحة الصحيحة</div>
-        </div>
+            <div id="manual_section" style="display:none">
+                <label> القدرة (واط)</label>
+                <div class="flex gap-2">
+                    <input type="number" step="any" id="en_w" value="1000" class="flex-1">
+                    <select id="power_unit" class="w-1/3">
+                        <option value="w">واط (W)</option>
+                        <option value="kw">كيلوواط (kW)</option>
+                        <option value="hp">حصان (HP)</option>
+                    </select>
+                </div>
+            </div>
 
-        <label> فترة الحساب</label>
-        <select id="period" class="w-full">
-            <option value="day">يومي</option>
-            <option value="month">شهري</option>
-            <option value="year">سنوي</option>
-        </select>
+            <label> ساعات التشغيل اليومية</label>
+            <div class="flex gap-2">
+                <input type="number" step="any" id="en_h" value="8" class="flex-1">
+                <select id="days_unit" class="w-1/3">
+                    <option value="day">يومياً</option>
+                    <option value="week">أسبوعياً</option>
+                    <option value="month">شهرياً</option>
+                </select>
+            </div>
 
-        <div class="text-xs text-gray-500 mt-3 bg-gray-50 p-2 rounded">
-             يتم حساب البصمة الكربونية ونصائح توفير الطاقة تلقائياً.
-        </div>
-    `;
-    
-    setContent(html, () => {
-        // ---- قراءة المدخلات ----
-        let power_w = 0;
-        const method = document.getElementById('input_method').value;
+            <label> سعر الكهرباء</label>
+            <div class="flex gap-2 mb-2">
+                <select id="price_type" class="w-1/2">
+                    <option value="fixed">سعر ثابت</option>
+                    <option value="tier">شرائح الكهرباء (مصر)</option>
+                </select>
+                <div id="fixed_price_div" class="flex-1 flex gap-2">
+                    <input type="number" step="any" id="en_p" value="1.5" class="w-full">
+                    <span class="text-xs self-center">ج.م/kWh</span>
+                </div>
+            </div>
+
+            <div id="tier_div" style="display:none">
+                <label>الاستهلاك الشهري الإجمالي للمنزل (kWh)</label>
+                <input type="number" step="any" id="monthly_kwh" value="300" class="w-full">
+                <div class="text-xs text-gray-500">يُستخدم لتحديد الشريحة الصحيحة</div>
+            </div>
+
+            <label> فترة الحساب</label>
+            <select id="period" class="w-full">
+                <option value="day">يومي</option>
+                <option value="month">شهري</option>
+                <option value="year">سنوي</option>
+            </select>
+
+            <div class="text-xs text-gray-500 mt-3 bg-gray-50 p-2 rounded">
+                 يتم حساب البصمة الكربونية ونصائح توفير الطاقة تلقائياً.
+            </div>
+        `;
         
-        if (method === 'appliance') {
-            const appliance = document.getElementById('appliance_select').value;
-            if (!appliance) {
-                showToast('اختر جهازاً من القائمة', 'warning');
-                return;
-            }
-            power_w = appliances[appliance];
-        } else {
-            let powerVal = parseFloat(document.getElementById('en_w').value);
-            const unit = document.getElementById('power_unit').value;
-            if (isNaN(powerVal) || powerVal <= 0) {
-                showToast('أدخل قدرة صحيحة (>0)', 'warning');
-                return;
-            }
-            if (unit === 'kw') power_w = powerVal * 1000;
-            else if (unit === 'hp') power_w = powerVal * 746;
-            else power_w = powerVal;
-        }
-        
-        // ساعات التشغيل
-        let hours_raw = parseFloat(document.getElementById('en_h').value);
-        const daysUnit = document.getElementById('days_unit').value;
-        if (isNaN(hours_raw) || hours_raw <= 0) {
-            showToast('أدخل ساعات تشغيل صحيحة', 'warning');
-            return;
-        }
-        let hours_per_day = hours_raw;
-        if (daysUnit === 'week') hours_per_day = hours_raw / 7;
-        else if (daysUnit === 'month') hours_per_day = hours_raw / 30;
-        
-        // السعر
-        const priceType = document.getElementById('price_type').value;
-        let price_per_kwh;
-        let priceNote = '';
-        if (priceType === 'fixed') {
-            price_per_kwh = parseFloat(document.getElementById('en_p').value);
-            if (isNaN(price_per_kwh) || price_per_kwh <= 0) {
-                showToast('أدخل سعراً صحيحاً', 'warning');
-                return;
-            }
-        } else {
-            const monthlyTotal = parseFloat(document.getElementById('monthly_kwh').value);
-            if (isNaN(monthlyTotal) || monthlyTotal < 0) {
-                showToast('أدخل الاستهلاك الشهري الإجمالي', 'warning');
-                return;
-            }
-            const tier = tiers.find(t => monthlyTotal >= t.min && monthlyTotal <= t.max);
-            if (tier) {
-                price_per_kwh = tier.price;
-                priceNote = ` (${tier.name})`;
+        setContent(html, () => {
+            let power_w = 0;
+            const method = document.getElementById('input_method').value;
+            
+            if (method === 'appliance') {
+                const appliance = document.getElementById('appliance_select').value;
+                if (!appliance) {
+                    showToast('اختر جهازاً من القائمة', 'warning');
+                    return;
+                }
+                power_w = appliances[appliance];
             } else {
-                price_per_kwh = tiers[tiers.length-1].price;
-                priceNote = ` (شريحة متقدمة)`;
+                let powerVal = parseFloat(document.getElementById('en_w').value);
+                const unit = document.getElementById('power_unit').value;
+                if (isNaN(powerVal) || powerVal <= 0) {
+                    showToast('أدخل قدرة صحيحة (>0)', 'warning');
+                    return;
+                }
+                if (unit === 'kw') power_w = powerVal * 1000;
+                else if (unit === 'hp') power_w = powerVal * 746;
+                else power_w = powerVal;
             }
-        }
+            
+            let hours_raw = parseFloat(document.getElementById('en_h').value);
+            const daysUnit = document.getElementById('days_unit').value;
+            if (isNaN(hours_raw) || hours_raw <= 0) {
+                showToast('أدخل ساعات تشغيل صحيحة', 'warning');
+                return;
+            }
+            let hours_per_day = hours_raw;
+            if (daysUnit === 'week') hours_per_day = hours_raw / 7;
+            else if (daysUnit === 'month') hours_per_day = hours_raw / 30;
+            
+            const priceType = document.getElementById('price_type').value;
+            let price_per_kwh;
+            let priceNote = '';
+            if (priceType === 'fixed') {
+                price_per_kwh = parseFloat(document.getElementById('en_p').value);
+                if (isNaN(price_per_kwh) || price_per_kwh <= 0) {
+                    showToast('أدخل سعراً صحيحاً', 'warning');
+                    return;
+                }
+            } else {
+                const monthlyTotal = parseFloat(document.getElementById('monthly_kwh').value);
+                if (isNaN(monthlyTotal) || monthlyTotal < 0) {
+                    showToast('أدخل الاستهلاك الشهري الإجمالي', 'warning');
+                    return;
+                }
+                const tier = tiers.find(t => monthlyTotal >= t.min && monthlyTotal <= t.max);
+                if (tier) {
+                    price_per_kwh = tier.price;
+                    priceNote = ` (${tier.name})`;
+                } else {
+                    price_per_kwh = tiers[tiers.length-1].price;
+                    priceNote = ` (شريحة متقدمة)`;
+                }
+            }
+            
+            const period = document.getElementById('period').value;
+            const power_kw = power_w / 1000;
+            const daily_kwh = power_kw * hours_per_day;
+            
+            let multiplier = 1, periodName = '';
+            if (period === 'day') { multiplier = 1; periodName = 'اليومي'; }
+            else if (period === 'month') { multiplier = 30; periodName = 'الشهري'; }
+            else { multiplier = 365; periodName = 'السنوي'; }
+            
+            const total_kwh = daily_kwh * multiplier;
+            const total_cost = total_kwh * price_per_kwh;
+            const cost_per_hour = power_kw * price_per_kwh;
+            const co2_kg = total_kwh * 0.5;
+            const co2_tons = co2_kg / 1000;
+            const trees_needed = Math.ceil(co2_tons * 45);
+            
+            let tips = [];
+            if (power_w > 1000) {
+                tips.push(` الجهاز قدرته ${(power_w/1000).toFixed(1)} كيلوواط، تشغيله ساعة يستهلك ${power_kw.toFixed(1)} كيلوواط ساعة.`);
+            }
+            if (hours_per_day > 12) {
+                tips.push(` التشغيل ${hours_per_day.toFixed(1)} ساعة يومياً طويل جداً، حاول تقليله.`);
+            }
+            if (power_w > 500 && hours_per_day > 5) {
+                const potential_saving = total_cost * 0.4;
+                tips.push(`?? جهاز بديل موفر قد يوفر ≈ ${Math.round(potential_saving)} ج.م ${periodName === 'اليومي' ? 'يومياً' : (periodName === 'الشهري' ? 'شهرياً' : 'سنوياً')}.`);
+            }
+            
+            let comparison = '';
+            if (power_w > 200) {
+                const ledCount = Math.floor(power_w / 12);
+                comparison = ` استهلاك هذا الجهاز يعادل ${ledCount} لمبة LED (12 واط) تعمل لنفس المدة.`;
+            }
+            
+            const results = {
+                'القدرة الكهربائية': `${power_w.toFixed(0)} واط (${power_kw.toFixed(2)} كيلوواط)`,
+                ' ساعات التشغيل اليومية': `${hours_per_day.toFixed(1)} ساعة/يوم`,
+                ' الاستهلاك اليومي': `${round2(daily_kwh)} كيلوواط ساعة`,
+                [` الاستهلاك ${periodName}`]: `${round2(total_kwh)} كيلوواط ساعة`,
+                ' سعر الكيلوواط': `${round2(price_per_kwh)} ج.م/kWh${priceNote}`,
+                [` التكلفة ${periodName.toLowerCase()}`]: `${round2(total_cost)} ج.م`,
+                'التكلفة السنوية (تقديرية)': `${round2(total_cost * (period === 'year' ? 1 : 365/multiplier))} ج.م`,
+                ' تكلفة الساعة': `${round2(cost_per_hour)} ج.م`,
+                ' البصمة الكربونية': `${round2(co2_kg)} كجم CO₂ (${round2(co2_tons)} طن)`
+            };
+            
+            if (trees_needed > 0) results[' تعويض الكربون'] = `تحتاج زراعة ≈ ${trees_needed} شجرة سنوياً`;
+            if (comparison) results[' مقارنة'] = comparison;
+            
+            showFullRes(` تكلفة الكهرباء - ${periodName}`, results);
+            if (tips.length) {
+                const tipsHtml = `<div class="saving-tip" style="background:#dcfce7; border-right:4px solid #22c55e; padding:10px; margin-top:10px; border-radius:8px;"><strong> نصائح توفير الطاقة:</strong><br>${tips.map(t => '• ' + t).join('<br>')}</div>`;
+                const resDiv = document.getElementById('resultDisplay');
+                if (resDiv) resDiv.insertAdjacentHTML('beforeend', tipsHtml);
+            }
+        });
         
-        const period = document.getElementById('period').value;
-        const power_kw = power_w / 1000;
-        const daily_kwh = power_kw * hours_per_day;
+        setTimeout(() => {
+            const methodSelect = document.getElementById('input_method');
+            const applianceDiv = document.getElementById('appliance_section');
+            const manualDiv = document.getElementById('manual_section');
+            const priceType = document.getElementById('price_type');
+            const fixedDiv = document.getElementById('fixed_price_div');
+            const tierDiv = document.getElementById('tier_div');
+            
+            if (methodSelect) {
+                const toggleMethod = () => {
+                    if (methodSelect.value === 'appliance') {
+                        applianceDiv.style.display = 'block';
+                        manualDiv.style.display = 'none';
+                    } else {
+                        applianceDiv.style.display = 'none';
+                        manualDiv.style.display = 'block';
+                    }
+                    clearResult();
+                };
+                methodSelect.addEventListener('change', toggleMethod);
+                toggleMethod();
+            }
+            
+            if (priceType) {
+                const togglePrice = () => {
+                    if (priceType.value === 'fixed') {
+                        fixedDiv.style.display = 'flex';
+                        tierDiv.style.display = 'none';
+                    } else {
+                        fixedDiv.style.display = 'none';
+                        tierDiv.style.display = 'block';
+                    }
+                    clearResult();
+                };
+                priceType.addEventListener('change', togglePrice);
+                togglePrice();
+            }
+        }, 10);
+        return;
+    }
+    
+    else if (toolId === 'wire') {
+        title.innerText = ' تصميم مقطع السلك ';
         
-        let multiplier = 1, periodName = '';
-        if (period === 'day') { multiplier = 1; periodName = 'اليومي'; }
-        else if (period === 'month') { multiplier = 30; periodName = 'الشهري'; }
-        else { multiplier = 365; periodName = 'السنوي'; }
+        const AMPACITY_TABLE = TOOL_CONSTANTS.ampacityTable;
+        const INSTALLATION_FACTOR = TOOL_CONSTANTS.installationFactor;
+        const RESISTIVITY_20 = TOOL_CONSTANTS.resistivity20;
         
-        const total_kwh = daily_kwh * multiplier;
-        const total_cost = total_kwh * price_per_kwh;
-        const cost_per_hour = power_kw * price_per_kwh;
+        setContent(`
+            <label> التيار (أمبير)</label>
+            <input type="number" step="any" id="w_a" value="20" class="w-full">
+            
+            <label> طول السلك (متر)</label>
+            <input type="number" step="any" id="w_l" value="30" class="w-full">
+            <div class="text-xs text-gray-500">ملاحظة: الطول من الموزع إلى الحمل (ذهاب فقط)</div>
+            
+            <label>الجهد (فولت)</label>
+            <input type="number" step="any" id="w_voltage" value="230" class="w-full">
+            
+            <label> درجة الحرارة المحيطة (°C)</label>
+            <input type="number" step="any" id="w_temp" value="30" class="w-full">
+            
+            <div class="phase-selector">
+                <div class="phase-option selected" data-wire-phase="single" onclick="ToolHelpers.setWirePhase(this, 'single')"> فاز واحد</div>
+                <div class="phase-option" data-wire-phase="three" onclick="ToolHelpers.setWirePhase(this, 'three')">ثلاثة فاز</div>
+            </div>
+            
+            <div class="phase-selector">
+                <div class="phase-option selected" data-wire-material="cu" onclick="ToolHelpers.setWireMaterial(this, 'cu')"> نحاس</div>
+                <div class="phase-option" data-wire-material="al" onclick="ToolHelpers.setWireMaterial(this, 'al')"> ألمنيوم</div>
+            </div>
+            
+            <label> طريقة التمديد</label>
+            <select id="install_method" class="w-full">
+                <option value="air">في الهواء الحر</option>
+                <option value="conduit">داخل ماسورة</option>
+                <option value="buried">مدفون مباشرة</option>
+            </select>
+            
+            <label>نسبة هبوط الجهد المسموحة (%)</label>
+            <select id="vdrop_percent" class="w-full">
+                <option value="2">2% (حساس - إضاءة LED)</option>
+                <option value="3" selected>3% (قياسي - NEC)</option>
+                <option value="5">5% (متسامح - محركات)</option>
+            </select>
+            
+            <div class="text-xs text-gray-500 mt-2"> التحذيرات والتوصيات تظهر في النتيجة</div>
+        `, () => {
+            let I_raw = parseFloat(document.getElementById('w_a').value);
+            let L = parseFloat(document.getElementById('w_l').value);
+            let voltage = parseFloat(document.getElementById('w_voltage').value);
+            let temp = parseFloat(document.getElementById('w_temp').value);
+            let vDropPerc = parseFloat(document.getElementById('vdrop_percent').value);
+            let installMethod = document.getElementById('install_method').value;
+            
+            if (isNaN(I_raw) || I_raw <= 0) { showToast('أدخل تيار صحيح (>0)', 'warning'); return; }
+            if (isNaN(L) || L <= 0) { showToast('أدخل طول صحيح (>0)', 'warning'); return; }
+            if (isNaN(voltage) || voltage <= 0) { showToast('أدخل جهد صحيح (>0)', 'warning'); return; }
+            if (isNaN(temp) || temp < -10 || temp > 90) { showToast('درجة حرارة غير منطقية (-10 إلى 90°C)', 'warning'); return; }
+            
+            if (I_raw > 200) showToast(' تيار عالي جداً - راجع تصميم الأحمال', 'warning');
+            if (L > 150) showToast('طول كبير - هبوط الجهد قد يكون مشكلة', 'warning');
+            if (temp > 50) showToast(' حرارة عالية - قلل التيار أو زد المقطع', 'warning');
+            
+            const phaseElem = document.querySelector('#modalBody .phase-option.selected[data-wire-phase]');
+            const materialElem = document.querySelector('#modalBody .phase-option.selected[data-wire-material]');
+            const isThreePhase = phaseElem && phaseElem.dataset.wirePhase === 'three';
+            const isAluminum = materialElem && materialElem.dataset.wireMaterial === 'al';
+            const material = isAluminum ? 'al' : 'cu';
+            
+            let resistivity20 = RESISTIVITY_20[material];
+            let tempFactor = 1 + 0.004 * (temp - 20);
+            let resistivity = resistivity20 * tempFactor;
+            let effectiveLength = isThreePhase ? L : L * 2;
+            
+            let areaVD;
+            if (isThreePhase) {
+                areaVD = (Math.sqrt(3) * I_raw * effectiveLength * resistivity) / (voltage * (vDropPerc / 100));
+            } else {
+                areaVD = (2 * I_raw * effectiveLength * resistivity) / (voltage * (vDropPerc / 100));
+            }
+            
+            let ampacityTable = AMPACITY_TABLE[material];
+            let installFactor = INSTALLATION_FACTOR[installMethod];
+            let requiredAmpacity = I_raw / installFactor;
+            
+            let ampacityValues = Object.keys(ampacityTable).map(Number).sort((a,b) => a-b);
+            let minAmpacitySize = null;
+            for (let size of ampacityValues) {
+                if (ampacityTable[size] >= requiredAmpacity) {
+                    minAmpacitySize = size;
+                    break;
+                }
+            }
+            
+            if (minAmpacitySize === null) {
+                showToast(' التيار كبير جداً - لا يتوفر مقطع مناسب في الجداول', 'error');
+                return;
+            }
+            
+            let stdSizes = ampacityValues;
+            let finalSizeByVD = getNearestStdArea(areaVD, stdSizes);
+            let finalSize = Math.max(finalSizeByVD, minAmpacitySize);
+            
+            let vdWarning = '';
+            if (finalSize > finalSizeByVD) {
+                vdWarning = ` تم اختيار مقطع ${finalSize} مم² لتلبية متطلبات Ampacity (تحمل التيار)`;
+            }
+            
+            let actualVD, actualVDpercent;
+            if (isThreePhase) {
+                actualVD = (Math.sqrt(3) * I_raw * effectiveLength * resistivity) / finalSize;
+            } else {
+                actualVD = (2 * I_raw * effectiveLength * resistivity) / finalSize;
+            }
+            actualVDpercent = (actualVD / voltage) * 100;
+            
+            let recommendation = '';
+            let safetyWarning = '';
+            
+            if (finalSize > minAmpacitySize && finalSize > finalSizeByVD) {
+                recommendation = ' اختيار آمن (يُرضي Ampacity وهبوط الجهد)';
+            } else if (finalSize === finalSizeByVD && finalSize > minAmpacitySize) {
+                recommendation = ' يتحكم فيه Ampacity - التيار هو العامل المحدد';
+                safetyWarning = 'التيار قريب من الحد الأقصى للسلك - تجنب زيادة الأحمال';
+            } else if (finalSize === minAmpacitySize && finalSize > finalSizeByVD) {
+                recommendation = ' يتحكم فيه هبوط الجهد - الطول هو العامل المحدد';
+            } else {
+                recommendation = ' اختيار متوازن';
+            }
+            
+            if (actualVDpercent > vDropPerc) {
+                recommendation = 'هبوط الجهد أعلى من المسموح - زد المقطع درجة';
+                safetyWarning = ` الهبوط الفعلي ${actualVDpercent.toFixed(1)}% > ${vDropPerc}% المسموحة`;
+            }
+            
+            if (actualVDpercent > 5) {
+                safetyWarning += '  هبوط جهد كبير جداً - أداء الأجهزة سيتأثر بشدة';
+            }
+            
+            let resultObj = {
+                'تنبيه مهم': 'هذه حسابات تقريبية. للتصاميم الحرجة استشر NEC أو الكود المحلي.',
+                'التيار': `${I_raw} A`,
+                'طول الكابل': `${L} m (ذهاب) → ${effectiveLength} m (فعال)`,
+                ' النظام': isThreePhase ? `ثلاثة فاز ${voltage}V` : `فاز واحد ${voltage}V`,
+                ' المادة': isAluminum ? 'ألمنيوم' : 'نحاس',
+                ' درجة الحرارة': `${temp}°C (معامل المقاومية ×${tempFactor.toFixed(2)})`,
+                'طريقة التمديد': installMethod === 'air' ? 'في الهواء' : (installMethod === 'conduit' ? 'داخل ماسورة' : 'مدفون'),
+                ' هبوط الجهد المسموح': `${vDropPerc}%`,
+                ' المقطع المحسوب (هبوط الجهد)': `${areaVD.toFixed(2)} mm² → قياسي ${finalSizeByVD} mm²`,
+                ' المقطع المطلوب (Ampacity)': `${minAmpacitySize} mm² (يتحمل ${ampacityTable[minAmpacitySize]} A ≥ ${requiredAmpacity.toFixed(1)} A)`,
+                ' المقطع النهائي الموصى به': `${finalSize} mm²`,
+                ' هبوط الجهد الفعلي': `${actualVD.toFixed(2)} V (${actualVDpercent.toFixed(1)}%)`,
+                'التوصية': recommendation
+            };
+            
+            if (safetyWarning) resultObj['تحذير السلامة'] = safetyWarning;
+            if (vdWarning) resultObj['ملاحظة'] = vdWarning;
+            
+            showFullRes('نتائج تصميم مقطع السلك', resultObj);
+        });
         
-        // البصمة الكربونية (0.5 كجم CO2 لكل kWh - متوسط مصر)
-        const co2_kg = total_kwh * 0.5;
-        const co2_tons = co2_kg / 1000;
-        const trees_needed = Math.ceil(co2_tons * 45); // 45 كجم لكل شجرة سنوياً
-        
-        // نصائح توفير الطاقة
-        let tips = [];
-        if (power_w > 1000) {
-            tips.push(` الجهاز قدرته ${(power_w/1000).toFixed(1)} كيلوواط، تشغيله ساعة يستهلك ${power_kw.toFixed(1)} كيلوواط ساعة.`);
-        }
-        if (hours_per_day > 12) {
-            tips.push(` التشغيل ${hours_per_day.toFixed(1)} ساعة يومياً طويل جداً، حاول تقليله.`);
-        }
-        if (power_w > 500 && hours_per_day > 5) {
-            const potential_saving = total_cost * 0.4;
-            tips.push(`?? جهاز بديل موفر قد يوفر ≈ ${Math.round(potential_saving)} ج.م ${periodName === 'اليومي' ? 'يومياً' : (periodName === 'الشهري' ? 'شهرياً' : 'سنوياً')}.`);
-        }
-        
-        // مقارنة بسيطة
-        let comparison = '';
-        if (power_w > 200) {
-            const ledCount = Math.floor(power_w / 12);
-            comparison = ` استهلاك هذا الجهاز يعادل ${ledCount} لمبة LED (12 واط) تعمل لنفس المدة.`;
-        }
-        
-        // تجهيز كائن النتائج
-        const results = {
-            'القدرة الكهربائية': `${power_w.toFixed(0)} واط (${power_kw.toFixed(2)} كيلوواط)`,
-            ' ساعات التشغيل اليومية': `${hours_per_day.toFixed(1)} ساعة/يوم`,
-            ' الاستهلاك اليومي': `${round2(daily_kwh)} كيلوواط ساعة`,
-            [` الاستهلاك ${periodName}`]: `${round2(total_kwh)} كيلوواط ساعة`,
-            ' سعر الكيلوواط': `${round2(price_per_kwh)} ج.م/kWh${priceNote}`,
-            [` التكلفة ${periodName.toLowerCase()}`]: `${round2(total_cost)} ج.م`,
-            'التكلفة السنوية (تقديرية)': `${round2(total_cost * (period === 'year' ? 1 : 365/multiplier))} ج.م`,
-            ' تكلفة الساعة': `${round2(cost_per_hour)} ج.م`,
-            ' البصمة الكربونية': `${round2(co2_kg)} كجم CO₂ (${round2(co2_tons)} طن)`
+        window.ToolHelpers.setWirePhase = function(btn, phase) { 
+            document.querySelectorAll('#modalBody .phase-option[data-wire-phase]').forEach(b=>b.classList.remove('selected'));
+            btn.classList.add('selected');
+            clearResult();
+        };
+        window.ToolHelpers.setWireMaterial = function(btn, mat) { 
+            document.querySelectorAll('#modalBody .phase-option[data-wire-material]').forEach(b=>b.classList.remove('selected'));
+            btn.classList.add('selected');
+            clearResult();
         };
         
-        if (trees_needed > 0) {
-            results[' تعويض الكربون'] = `تحتاج زراعة ≈ ${trees_needed} شجرة سنوياً`; }
-        if (comparison) {
-            results[' مقارنة'] = comparison;   }
-        showFullRes(` تكلفة الكهرباء - ${periodName}`, results);
-        if (tips.length) {
-            const tipsHtml = `<div class="saving-tip" style="background:#dcfce7; border-right:4px solid #22c55e; padding:10px; margin-top:10px; border-radius:8px;"><strong> نصائح توفير الطاقة:</strong><br>${tips.map(t => '• ' + t).join('<br>')}</div>`;
-            const resDiv = document.getElementById('resultDisplay');
-            if (resDiv) resDiv.insertAdjacentHTML('beforeend', tipsHtml); }
-    });
-    
-    // ---- إضافة أحداث التبديل الديناميكي (آمنة) ----
-    setTimeout(() => {
-        const methodSelect = document.getElementById('input_method');
-        const applianceDiv = document.getElementById('appliance_section');
-        const manualDiv = document.getElementById('manual_section');
-        const priceType = document.getElementById('price_type');
-        const fixedDiv = document.getElementById('fixed_price_div');
-        const tierDiv = document.getElementById('tier_div');
-        
-        if (methodSelect) {
-            const toggleMethod = () => {
-                if (methodSelect.value === 'appliance') {
-                    applianceDiv.style.display = 'block';
-                    manualDiv.style.display = 'none';
-                } else {
-                    applianceDiv.style.display = 'none';
-                    manualDiv.style.display = 'block';
-                }
-                clearResult();
-            };
-            methodSelect.addEventListener('change', toggleMethod);
-            toggleMethod();   }
-        
-        if (priceType) {
-            const togglePrice = () => {
-                if (priceType.value === 'fixed') {
-                    fixedDiv.style.display = 'flex';
-                    tierDiv.style.display = 'none';
-                } else {
-                    fixedDiv.style.display = 'none';
-                    tierDiv.style.display = 'block';
-                }
-                clearResult();
-            };
-            priceType.addEventListener('change', togglePrice);
-            togglePrice();
-        }
-    }, 10);
-}
-    
-
-
-else if (toolId === 'wire') { 
-    title.innerText = ' تصميم مقطع السلك ';
-    
-    // ----- جداول الـ Ampacity (تحمل التيار) حسب NEC -----
-    const AMPACITY_TABLE = {
-        cu: {   // نحاس 75°C
-            1.5: 15, 2.5: 21, 4: 28, 6: 36, 10: 50, 16: 68, 25: 89, 35: 110,
-            50: 133, 70: 171, 95: 207, 120: 239, 150: 275, 185: 312, 240: 369
-        },
-        al: {   // ألمنيوم 75°C
-            2.5: 18, 4: 24, 6: 31, 10: 42, 16: 57, 25: 74, 35: 92,
-            50: 112, 70: 144, 95: 174, 120: 201, 150: 232, 185: 263, 240: 311
-        }
-    };
-    
-    // المقاومية القياسية عند 20°C (أوم.مم²/م)
-    const RESISTIVITY_20 = { cu: 0.01724, al: 0.0282 };
-    
-    // معامل تصحيح طريقة التمديد
-    const INSTALLATION_FACTOR = { air: 1.0, conduit: 0.8, buried: 0.9 };
-    
-    setContent(`
-        <label> التيار (أمبير)</label>
-        <input type="number" step="any" id="w_a" value="20" class="w-full">
-        
-        <label> طول السلك (متر)</label>
-        <input type="number" step="any" id="w_l" value="30" class="w-full">
-        <div class="text-xs text-gray-500">ملاحظة: الطول من الموزع إلى الحمل (ذهاب فقط)</div>
-        
-        <label>الجهد (فولت)</label>
-        <input type="number" step="any" id="w_voltage" value="230" class="w-full">
-        
-        <label> درجة الحرارة المحيطة (°C)</label>
-        <input type="number" step="any" id="w_temp" value="30" class="w-full">
-        
-        <div class="phase-selector">
-            <div class="phase-option selected" data-wire-phase="single" onclick="ToolHelpers.setWirePhase(this, 'single')"> فاز واحد</div>
-            <div class="phase-option" data-wire-phase="three" onclick="ToolHelpers.setWirePhase(this, 'three')">ثلاثة فاز</div>
-        </div>
-        
-        <div class="phase-selector">
-            <div class="phase-option selected" data-wire-material="cu" onclick="ToolHelpers.setWireMaterial(this, 'cu')"> نحاس</div>
-            <div class="phase-option" data-wire-material="al" onclick="ToolHelpers.setWireMaterial(this, 'al')"> ألمنيوم</div>
-        </div>
-        
-        <label> طريقة التمديد</label>
-        <select id="install_method" class="w-full">
-            <option value="air">في الهواء الحر</option>
-            <option value="conduit">داخل ماسورة</option>
-            <option value="buried">مدفون مباشرة</option>
-        </select>
-        
-        <label>نسبة هبوط الجهد المسموحة (%)</label>
-        <select id="vdrop_percent" class="w-full">
-            <option value="2">2% (حساس - إضاءة LED)</option>
-            <option value="3" selected>3% (قياسي - NEC)</option>
-            <option value="5">5% (متسامح - محركات)</option>
-        </select>
-        
-        <div class="text-xs text-gray-500 mt-2"> التحذيرات والتوصيات تظهر في النتيجة</div>
-    `, () => {
-        // ----- قراءة المدخلات مع التحقق -----
-        let I_raw = parseFloat(document.getElementById('w_a').value);
-        let L = parseFloat(document.getElementById('w_l').value);
-        let voltage = parseFloat(document.getElementById('w_voltage').value);
-        let temp = parseFloat(document.getElementById('w_temp').value);
-        let vDropPerc = parseFloat(document.getElementById('vdrop_percent').value);
-        let installMethod = document.getElementById('install_method').value;
-        
-        if (isNaN(I_raw) || I_raw <= 0) { showToast('أدخل تيار صحيح (>0)', 'warning'); return; }
-        if (isNaN(L) || L <= 0) { showToast('أدخل طول صحيح (>0)', 'warning'); return; }
-        if (isNaN(voltage) || voltage <= 0) { showToast('أدخل جهد صحيح (>0)', 'warning'); return; }
-        if (isNaN(temp) || temp < -10 || temp > 90) { showToast('درجة حرارة غير منطقية (-10 إلى 90°C)', 'warning'); return; }
-        
-        // تحذيرات للقيم الكبيرة
-        if (I_raw > 200) showToast(' تيار عالي جداً - راجع تصميم الأحمال', 'warning');
-        if (L > 150) showToast('طول كبير - هبوط الجهد قد يكون مشكلة', 'warning');
-        if (temp > 50) showToast(' حرارة عالية - قلل التيار أو زد المقطع', 'warning');
-        
-        const phaseElem = document.querySelector('#modalBody .phase-option.selected[data-wire-phase]');
-        const materialElem = document.querySelector('#modalBody .phase-option.selected[data-wire-material]');
-        const isThreePhase = phaseElem && phaseElem.dataset.wirePhase === 'three';
-        const isAluminum = materialElem && materialElem.dataset.wireMaterial === 'al';
-        const material = isAluminum ? 'al' : 'cu';
-        
-        // ----- 1. معامل درجة الحرارة على المقاومية -----
-        let resistivity20 = RESISTIVITY_20[material];
-        let tempFactor = 1 + 0.004 * (temp - 20);  // معامل تغير المقاومية مع الحرارة
-        let resistivity = resistivity20 * tempFactor;
-        
-        // ----- 2. الطول الفعال (ذهاب + إياب للفاز الواحد) -----
-        let effectiveLength = isThreePhase ? L : L * 2;
-        
-        // ----- 3. معادلة هبوط الجهد الصحيحة -----
-        let areaVD;  // المقطع المطلوب بناءً على هبوط الجهد
-        if (isThreePhase) {
-            // للثلاثة فاز: VD = √3 × I × L × ρ / A
-            areaVD = (Math.sqrt(3) * I_raw * effectiveLength * resistivity) / (voltage * (vDropPerc / 100));
-        } else {
-            // للفاز الواحد: VD = 2 × I × L × ρ / A
-            areaVD = (2 * I_raw * effectiveLength * resistivity) / (voltage * (vDropPerc / 100));
-        }
-        
-        // ----- 4. التحقق من Ampacity (تحمل التيار) -----
-        let ampacityTable = AMPACITY_TABLE[material];
-        let installFactor = INSTALLATION_FACTOR[installMethod];
-        let requiredAmpacity = I_raw / installFactor;  // التيار المطلوب بعد معامل التمديد
-        
-        // نبحث عن أصغر مقطع يتحمل التيار
-        let minAmpacitySize = null;
-        let ampacityValues = Object.keys(ampacityTable).map(Number).sort((a,b) => a-b);
-        for (let size of ampacityValues) {
-            if (ampacityTable[size] >= requiredAmpacity) {
-                minAmpacitySize = size;
-                break;
+        window.getNearestStdArea = function(area, stdSizes = null) {
+            if (!stdSizes) stdSizes = Object.keys(AMPACITY_TABLE.cu).map(Number).sort((a,b) => a-b);
+            if (area <= stdSizes[0]) return stdSizes[0];
+            for (let i = 0; i < stdSizes.length; i++) {
+                if (stdSizes[i] >= area) return stdSizes[i];
             }
-        }
-        
-        if (minAmpacitySize === null) {
-            showToast(' التيار كبير جداً - لا يتوفر مقطع مناسب في الجداول', 'error');
-            return;
-        }
-        
-        // ----- 5. اختيار المقطع النهائي (الأكبر بين هبوط الجهد وأمباسيتي) -----
-        let stdSizes = ampacityValues;
-        let finalSizeByVD = getNearestStdArea(areaVD, stdSizes);
-        let finalSize = Math.max(finalSizeByVD, minAmpacitySize);
-        
-        // إذا كان المقطع النهائي أكبر من المحسوب، نحتاج نعطي تحذير
-        let vdWarning = '';
-        if (finalSize > finalSizeByVD) {
-            vdWarning = ` تم اختيار مقطع ${finalSize} مم² لتلبية متطلبات Ampacity (تحمل التيار)`;
-        }
-        
-        // ----- 6. حساب هبوط الجهد الفعلي بالمقطع المختار -----
-        let actualVD, actualVDpercent;
-        if (isThreePhase) {
-            actualVD = (Math.sqrt(3) * I_raw * effectiveLength * resistivity) / finalSize;
-        } else {
-            actualVD = (2 * I_raw * effectiveLength * resistivity) / finalSize;
-        }
-        actualVDpercent = (actualVD / voltage) * 100;
-        
-        // ----- 7. التوصيات الذكية -----
-        let recommendation = '';
-        let safetyWarning = '';
-        
-        if (finalSize > minAmpacitySize && finalSize > finalSizeByVD) {
-            recommendation = ' اختيار آمن (يُرضي Ampacity وهبوط الجهد)';
-        } else if (finalSize === finalSizeByVD && finalSize > minAmpacitySize) {
-            recommendation = ' يتحكم فيه Ampacity - التيار هو العامل المحدد';
-            safetyWarning = 'التيار قريب من الحد الأقصى للسلك - تجنب زيادة الأحمال';
-        } else if (finalSize === minAmpacitySize && finalSize > finalSizeByVD) {
-            recommendation = ' يتحكم فيه هبوط الجهد - الطول هو العامل المحدد';
-        } else {
-            recommendation = ' اختيار متوازن';
-        }
-        
-        if (actualVDpercent > vDropPerc) {
-            recommendation = 'هبوط الجهد أعلى من المسموح - زد المقطع درجة';
-            safetyWarning = ` الهبوط الفعلي ${actualVDpercent.toFixed(1)}% > ${vDropPerc}% المسموحة`;
-        }
-        
-        if (actualVDpercent > 5) {
-            safetyWarning += '  هبوط جهد كبير جداً - أداء الأجهزة سيتأثر بشدة';
-        }
-        
-        // ----- 8. عرض النتائج المفصلة -----
-        let resultObj = {
-            'تنبيه مهم': 'هذه حسابات تقريبية. للتصاميم الحرجة استشر NEC أو الكود المحلي.',
-            'التيار': `${I_raw} A`,
-            'طول الكابل': `${L} m (ذهاب) → ${effectiveLength} m (فعال)`,
-            ' النظام': isThreePhase ? `ثلاثة فاز ${voltage}V` : `فاز واحد ${voltage}V`,
-            ' المادة': isAluminum ? 'ألمنيوم' : 'نحاس',
-            ' درجة الحرارة': `${temp}°C (معامل المقاومية ×${tempFactor.toFixed(2)})`,
-            'طريقة التمديد': installMethod === 'air' ? 'في الهواء' : (installMethod === 'conduit' ? 'داخل ماسورة' : 'مدفون'),
-            ' هبوط الجهد المسموح': `${vDropPerc}%`,
-            
-            ' المقطع المحسوب (هبوط الجهد)': `${areaVD.toFixed(2)} mm² → قياسي ${finalSizeByVD} mm²`,
-            ' المقطع المطلوب (Ampacity)': `${minAmpacitySize} mm² (يتحمل ${ampacityTable[minAmpacitySize]} A ≥ ${requiredAmpacity.toFixed(1)} A)`,
-            ' المقطع النهائي الموصى به': `${finalSize} mm²`,
-            
-            ' هبوط الجهد الفعلي': `${actualVD.toFixed(2)} V (${actualVDpercent.toFixed(1)}%)`,
-            'التوصية': recommendation
+            return stdSizes[stdSizes.length - 1];
         };
-        
-        if (safetyWarning) resultObj['تحذير السلامة'] = safetyWarning;
-        if (vdWarning) resultObj['ملاحظة'] = vdWarning;
-        
-        showFullRes('نتائج تصميم مقطع السلك', resultObj);
-    });
+        return;
+    }
     
-    // دوال المساعدة (بنفس الأسلوب القديم)
-    window.ToolHelpers.setWirePhase = function(btn, phase) { 
-        document.querySelectorAll('#modalBody .phase-option[data-wire-phase]').forEach(b=>b.classList.remove('selected'));
-        btn.classList.add('selected');
-        clearResult();
-    };
-    window.ToolHelpers.setWireMaterial = function(btn, mat) { 
-        document.querySelectorAll('#modalBody .phase-option[data-wire-material]').forEach(b=>b.classList.remove('selected'));
-        btn.classList.add('selected');
-        clearResult();
-    };
-    
-    // دالة إيجاد أقرب مقطع قياسي (تعديل لتدعم الـ stdSizes المخصص)
-    window.getNearestStdArea = function(area, stdSizes = null) {
-        if (!stdSizes) stdSizes = Object.keys(AMPACITY_TABLE.cu).map(Number).sort((a,b) => a-b);
-        if (area <= stdSizes[0]) return stdSizes[0];
-        for (let i = 0; i < stdSizes.length; i++) {
-            if (stdSizes[i] >= area) return stdSizes[i];
-        }
-        return stdSizes[stdSizes.length - 1];
-    };
-}
-    
-    // أداة قوانين الكهرباء 
-    else if(toolId === 'elec_laws') { 
-        title.innerText = ' قوانين الكهرباء'; 
-        setContent(`<div class="phase-selector"><div class="phase-option selected" onclick="ToolHelpers.setPhase(this,1)">فاز واحد (220V)</div><div class="phase-option" onclick="ToolHelpers.setPhase(this,3)">ثلاثة فاز (380V)</div></div><label>القدرة (P - واط)</label><input type="number" step="any" id="el_p"><label>الجهد (V - فولت)</label><input type="number" step="any" id="el_v" value="220"><label>التيار (I - أمبير)</label><input type="number" step="any" id="el_i"><label>المقاومة (R - أوم)</label><input type="number" step="any" id="el_r">`, () => { smartElectricCalc(); }); 
+    else if (toolId === 'elec_laws') {
+        title.innerText = ' قوانين الكهرباء';
+        setContent(`
+            <div class="phase-selector">
+                <div class="phase-option selected" onclick="ToolHelpers.setPhase(this,1)">فاز واحد (220V)</div>
+                <div class="phase-option" onclick="ToolHelpers.setPhase(this,3)">ثلاثة فاز (380V)</div>
+            </div>
+            <label>القدرة (P - واط)</label><input type="number" step="any" id="el_p">
+            <label>الجهد (V - فولت)</label><input type="number" step="any" id="el_v" value="220">
+            <label>التيار (I - أمبير)</label><input type="number" step="any" id="el_i">
+            <label>المقاومة (R - أوم)</label><input type="number" step="any" id="el_r">
+        `, () => { smartElectricCalc(); });
         window.ToolHelpers.setPhase = function(btn, phase) { 
             document.querySelectorAll('#modalBody .phase-option').forEach(b=>b.classList.remove('selected')); 
             btn.classList.add('selected');
             clearResult();
         };
+        return;
     }
     
-    // أداة حساب المكثف
-    else if (toolId === 'cap_calc') { 
-    title.innerText = ' حساب المكثف ';
-    
-    // دوال مساعدة
-    function round2(v) { return Math.round(v * 100) / 100; }
-    function round1(v) { return Math.round(v * 10) / 10; }
-    function round0(v) { return Math.round(v); }
-    
-    setContent(`
-        <div class="flex gap-2 mb-3">
-            <label class="flex-1">طريقة الحساب</label>
-            <select id="calc_mode" class="flex-1">
-                <option value="cap">حساب السعة </option>
-                <option value="current">حساب التيار</option>
+    else if (toolId === 'cap_calc') {
+        title.innerText = ' حساب المكثف ';
+        
+        function round2(v) { return Math.round(v * 100) / 100; }
+        function round1(v) { return Math.round(v * 10) / 10; }
+        function round0(v) { return Math.round(v); }
+        
+        setContent(`
+            <div class="flex gap-2 mb-3">
+                <label class="flex-1">طريقة الحساب</label>
+                <select id="calc_mode" class="flex-1">
+                    <option value="cap">حساب السعة </option>
+                    <option value="current">حساب التيار</option>
+                </select>
+            </div>
+            
+            <div id="mode_cap_section">
+                <label> التيار (أمبير)</label>
+                <input type="number" step="any" id="c_a" value="5" class="w-full">
+            </div>
+            
+            <div id="mode_current_section" style="display: none;">
+                <label> سعة المكثف (µF)</label>
+                <input type="number" step="any" id="c_uf" value="50" class="w-full">
+            </div>
+            
+            <label> الجهد (فولت)</label>
+            <input type="number" step="any" id="c_v" value="220" class="w-full">
+            
+            <label> التردد (Hz)</label>
+            <select id="c_freq" class="w-full mb-2">
+                <option value="50">50 Hz (مصر، السعودية، أوروبا)</option>
+                <option value="60">60 Hz (أمريكا، كندا، اليابان)</option>
             </select>
-        </div>
-        
-        <div id="mode_cap_section">
-            <label> التيار (أمبير)</label>
-            <input type="number" step="any" id="c_a" value="5" class="w-full">
-        </div>
-        
-        <div id="mode_current_section" style="display: none;">
-            <label> سعة المكثف (µF)</label>
-            <input type="number" step="any" id="c_uf" value="50" class="w-full">
-        </div>
-        
-        <label> الجهد (فولت)</label>
-        <input type="number" step="any" id="c_v" value="220" class="w-full">
-        
-        <label> التردد (Hz)</label>
-        <select id="c_freq" class="w-full mb-2">
-            <option value="50">50 Hz (مصر، السعودية، أوروبا)</option>
-            <option value="60">60 Hz (أمريكا، كندا، اليابان)</option>
-        </select>
-        
-        <label> النظام</label>
-        <select id="c_phase" class="w-full mb-2">
-            <option value="single">فاز واحد (Single Phase)</option>
-            <option value="three">ثلاثة فاز (Three Phase)</option>
-        </select>
-        
-        <label>معامل القدرة المستهدف (لتحسين PF)</label>
-        <input type="number" step="0.01" id="c_pf" value="0.95" placeholder="0.8 إلى 0.99" class="w-full">
-        <div class="text-xs text-gray-500 mt-1">الافتراضي 0.95 للمحركات - استخدم 1.0 للمكثفات البدء</div>
-        
-     
-    `, () => {
-        // قراءة المدخلات العامة
-        const calcMode = document.getElementById('calc_mode').value;
-        const voltage = parseFloat(document.getElementById('c_v').value);
-        const freq = parseFloat(document.getElementById('c_freq').value);
-        const phase = document.getElementById('c_phase').value;
-        const targetPf = parseFloat(document.getElementById('c_pf').value);
-        
-        // التحقق من المدخلات
-        if (isNaN(voltage) || voltage <= 0) { showToast('أدخل جهد صحيح (>0)', 'warning'); return; }
-        if (isNaN(freq) || (freq !== 50 && freq !== 60)) { showToast('اختر تردد 50 أو 60 Hz', 'warning'); return; }
-        if (isNaN(targetPf) || targetPf <= 0 || targetPf > 1) { showToast('معامل قدرة بين 0 و 1', 'warning'); return; }
-        
-        const omega = 2 * Math.PI * freq;   // ω = 2πf
-        let result = {};
-        
-        // تحذيرات للمستخدم
-        if (voltage > 1000) showToast(' جهد عالي - تأكد من سلامة المكثف', 'warning');
-        if (freq === 60 && document.getElementById('c_a')?.value > 0) {
-            // تنبيه خفيف أن السعة ستكون أقل عند 60Hz
-        }
-        
-        if (calcMode === 'cap') {
-            // ---------- الوضع المباشر: حساب السعة من التيار ----------
-            const current = parseFloat(document.getElementById('c_a').value);
-            if (isNaN(current) || current <= 0) { showToast('أدخل تيار صحيح (>0)', 'warning'); return; }
             
-            let capacitance_uf;
-            let formula_used = '';
+            <label> النظام</label>
+            <select id="c_phase" class="w-full mb-2">
+                <option value="single">فاز واحد (Single Phase)</option>
+                <option value="three">ثلاثة فاز (Three Phase)</option>
+            </select>
             
-            if (phase === 'single') {
-                // فاز واحد: I = V / Xc  →  Xc = V / I  →  C = 1 / (ω × Xc)
-                let Xc = voltage / current;
-                let capacitance_farad = 1 / (omega * Xc);
-                capacitance_uf = capacitance_farad * 1e6;
-                formula_used = 'C (µF) = (I × 10⁶) / (2πf × V)';
+            <label>معامل القدرة المستهدف (لتحسين PF)</label>
+            <input type="number" step="0.01" id="c_pf" value="0.95" placeholder="0.8 إلى 0.99" class="w-full">
+            <div class="text-xs text-gray-500 mt-1">الافتراضي 0.95 للمحركات - استخدم 1.0 للمكثفات البدء</div>
+        `, () => {
+            const calcMode = document.getElementById('calc_mode').value;
+            const voltage = parseFloat(document.getElementById('c_v').value);
+            const freq = parseFloat(document.getElementById('c_freq').value);
+            const phase = document.getElementById('c_phase').value;
+            const targetPf = parseFloat(document.getElementById('c_pf').value);
+            
+            if (isNaN(voltage) || voltage <= 0) { showToast('أدخل جهد صحيح (>0)', 'warning'); return; }
+            if (isNaN(freq) || (freq !== 50 && freq !== 60)) { showToast('اختر تردد 50 أو 60 Hz', 'warning'); return; }
+            if (isNaN(targetPf) || targetPf <= 0 || targetPf > 1) { showToast('معامل قدرة بين 0 و 1', 'warning'); return; }
+            
+            const omega = 2 * Math.PI * freq;
+            let result = {};
+            
+            if (voltage > 1000) showToast(' جهد عالي - تأكد من سلامة المكثف', 'warning');
+            
+            if (calcMode === 'cap') {
+                const current = parseFloat(document.getElementById('c_a').value);
+                if (isNaN(current) || current <= 0) { showToast('أدخل تيار صحيح (>0)', 'warning'); return; }
+                
+                let capacitance_uf;
+                let formula_used = '';
+                
+                if (phase === 'single') {
+                    let Xc = voltage / current;
+                    let capacitance_farad = 1 / (omega * Xc);
+                    capacitance_uf = capacitance_farad * 1e6;
+                    formula_used = 'C (µF) = (I × 10⁶) / (2πf × V)';
+                } else {
+                    let Xc = voltage / (Math.sqrt(3) * current);
+                    let capacitance_farad = 1 / (omega * Xc);
+                    capacitance_uf = capacitance_farad * 1e6;
+                    formula_used = 'C (µF) = (I × 10⁶) / (2πf × V × √3)';
+                }
+                
+                let reactivePower;
+                if (phase === 'single') {
+                    reactivePower = voltage * current;
+                } else {
+                    reactivePower = Math.sqrt(3) * voltage * current;
+                }
+                
+                result = {
+                    ' طريقة الحساب': 'حساب السعة من التيار',
+                    ' التيار المقاس': `${round2(current)} A`,
+                    ' الجهد': `${round0(voltage)} V`,
+                    ' التردد': `${freq} Hz`,
+                    'النظام': phase === 'single' ? 'فاز واحد' : 'ثلاثة فاز',
+                    ' المفاعلة السعوية (Xc)': `${round2(voltage / (phase === 'single' ? current : current * Math.sqrt(3)))} Ω`,
+                    ' سعة المكثف المطلوبة': `${round1(capacitance_uf)} µF`,
+                    ' القدرة التفاعلية (Qc)': `${round0(reactivePower / 1000)} kVAR`,
+                    ' معامل القدرة المستهدف': targetPf,
+                    ' المعادلة المستخدمة': formula_used
+                };
+                
+                if (capacitance_uf > 500) {
+                    result[' توصية'] = 'سعة كبيرة (>500µF) - يفضل استخدام عدة مكثفات على التوازي';
+                } else if (capacitance_uf < 1) {
+                    result[' توصية'] = ' سعة صغيرة جداً - تحقق من قراءة التيار';
+                } else {
+                    result[' توصية'] = ' سعة مناسبة - تأكد من جهد المكثف أن يكون أعلى من جهد التشغيل';
+                }
+                
             } else {
-                // ثلاثة فاز: I_line = V_line / (√3 × Xc)  →  Xc = V_line / (√3 × I_line)
-                let Xc = voltage / (Math.sqrt(3) * current);
-                let capacitance_farad = 1 / (omega * Xc);
-                capacitance_uf = capacitance_farad * 1e6;
-                formula_used = 'C (µF) = (I × 10⁶) / (2πf × V × √3)';
-            }
-            
-            // حساب القدرة التفاعلية للمكثف (VAR)
-            let reactivePower;
-            if (phase === 'single') {
-                reactivePower = voltage * current;
-            } else {
-                reactivePower = Math.sqrt(3) * voltage * current;
-            }
-            
-            result = {
-                ' طريقة الحساب': 'حساب السعة من التيار',
-                ' التيار المقاس': `${round2(current)} A`,
-                ' الجهد': `${round0(voltage)} V`,
-                ' التردد': `${freq} Hz`,
-                'النظام': phase === 'single' ? 'فاز واحد' : 'ثلاثة فاز',
-                ' المفاعلة السعوية (Xc)': `${round2(voltage / (phase === 'single' ? current : current * Math.sqrt(3)))} Ω`,
-                ' سعة المكثف المطلوبة': `${round1(capacitance_uf)} µF`,
-                ' القدرة التفاعلية (Qc)': `${round0(reactivePower / 1000)} kVAR`,
-                ' معامل القدرة المستهدف': targetPf,
-                ' المعادلة المستخدمة': formula_used
-            };
-            
-            // توصيات إضافية
-            if (capacitance_uf > 500) {
-                result[' توصية'] = 'سعة كبيرة (>500µF) - يفضل استخدام عدة مكثفات على التوازي';
-            } else if (capacitance_uf < 1) {
-                result[' توصية'] = ' سعة صغيرة جداً - تحقق من قراءة التيار';
-            } else {
-                result[' توصية'] = ' سعة مناسبة - تأكد من جهد المكثف أن يكون أعلى من جهد التشغيل';
-            }
-            
-        } else {
-            // ---------- الوضع العكسي: حساب التيار من السعة ----------
-            const capacitance_uf = parseFloat(document.getElementById('c_uf').value);
-            if (isNaN(capacitance_uf) || capacitance_uf <= 0) { showToast('أدخل سعة صحيحة (>0 µF)', 'warning'); return; }
-            
-            let current;
-            let formula_used = '';
-            let capacitance_farad = capacitance_uf / 1e6;
-            let Xc = 1 / (omega * capacitance_farad);
-            
-            if (phase === 'single') {
-                // فاز واحد: I = V / Xc
-                current = voltage / Xc;
-                formula_used = 'I (A) = V / Xc  ,  Xc = 1/(2πfC)';
-            } else {
-                // ثلاثة فاز: I_line = V_line / (√3 × Xc)
-                current = voltage / (Math.sqrt(3) * Xc);
-                formula_used = 'I (A) = V / (√3 × Xc)  ,  Xc = 1/(2πfC)';
-            }
-            
-            // حساب القدرة التفاعلية
-            let reactivePower;
-            if (phase === 'single') {
-                reactivePower = voltage * current;
-            } else {
-                reactivePower = Math.sqrt(3) * voltage * current;
-            }
-            
-            result = {
-                'طريقة الحساب': 'حساب التيار من السعة',
-                'سعة المكثف': `${round1(capacitance_uf)} µF`,
-                ' الجهد': `${round0(voltage)} V`,
-                'التردد': `${freq} Hz`,
-                'النظام': phase === 'single' ? 'فاز واحد' : 'ثلاثة فاز',
-                ' المفاعلة السعوية (Xc)': `${round2(Xc)} Ω`,
-                ' التيار المتوقع': `${round2(current)} A`,
-                'القدرة التفاعلية (Qc)': `${round0(reactivePower / 1000)} kVAR`,
-                ' معامل القدرة المستهدف': targetPf,
-                ' المعادلة المستخدمة': formula_used
-            };
-            
-            // توصيات
-            if (current > 50) {
-                result[' توصية'] = ' تيار عالي (>50A) - تأكد من توصيلات المكثف';
-            } else if (current < 0.5) {
-                result[' توصية'] = 'تيار ضعيف - السعة صغيرة أو الجهد منخفض';
-            } else {
-                result[' توصية'] = ' تيار مناسب';
-            }
-        }
-        
-        // إضافة تحذير التردد إذا كان المستخدم في بلد 60Hz لكنه نسي
-        if (freq === 60 && calcMode === 'cap') {
-            let currentVal = parseFloat(document.getElementById('c_a')?.value);
-            if (currentVal && currentVal > 0) {
-                let equivalent_50Hz = currentVal * (60/50);
-                result[' ملاحظة'] = `لو كان التردد 50Hz، التيار سيكون ≈ ${round1(equivalent_50Hz)} A لنفس السعة`;
-            }
-        }
-        
-        showFullRes('نتائج حساب المكثف', result);
-    });
-    
-    // إظهار/إخفاء الحقول حسب طريقة الحساب
-    const modeSelect = document.querySelector('#modalBody #calc_mode');
-    if (modeSelect) {
-        const toggleSections = () => {
-            const isCapMode = document.getElementById('calc_mode').value === 'cap';
-            const capSection = document.getElementById('mode_cap_section');
-            const currentSection = document.getElementById('mode_current_section');
-            if (capSection) capSection.style.display = isCapMode ? 'block' : 'none';
-            if (currentSection) currentSection.style.display = isCapMode ? 'none' : 'block';
-        };
-        modeSelect.addEventListener('change', toggleSections);
-        setTimeout(toggleSections, 10);
-    }
-}
-
-else if (toolId === 'capacitors') {
-    title.innerText = 'توصيل المكثفات';
-    
-    let conn = 'parallel'; // 'parallel', 'series', 'mixed'
-    let num = 2;
-    let seriesLen = 2;
-    let branches = 2;
-    
-    let seriesCache = {}, parallelCache = {};
-
-    const seriesCalc = (arr) => {
-        let key = arr.join(',');
-        if (seriesCache[key]) return seriesCache[key];
-        let res = 1 / arr.reduce((a, b) => a + 1 / b, 0);
-        seriesCache[key] = res;
-        return res;
-    };
-    
-    const parallelCalc = (arr) => {
-        let key = arr.join(',');
-        if (parallelCache[key]) return parallelCache[key];
-        let res = arr.reduce((a, b) => a + b, 0);
-        parallelCache[key] = res;
-        return res;
-    };
-    
-    const clearResults = () => {
-        const resultDisplay = document.getElementById('resultDisplay');
-        if (resultDisplay) resultDisplay.classList.add('hidden');
-    };
-    
-    const calcMixed = () => {
-        const order = document.getElementById('mixOrder').value;
-        const rows = branches;
-        const cols = seriesLen;
-        let branchEqs = [];
-        for (let r = 1; r <= rows; r++) {
-            let vals = [];
-            for (let c = 1; c <= cols; c++) {
-                let inp = document.getElementById(`mix_${r}_${c}`);
-                if (inp) {
-                    let v = parseFloat(inp.value);
-                    if (!isNaN(v) && v > 0) vals.push(v);
+                const capacitance_uf = parseFloat(document.getElementById('c_uf').value);
+                if (isNaN(capacitance_uf) || capacitance_uf <= 0) { showToast('أدخل سعة صحيحة (>0 µF)', 'warning'); return; }
+                
+                let current;
+                let formula_used = '';
+                let capacitance_farad = capacitance_uf / 1e6;
+                let Xc = 1 / (omega * capacitance_farad);
+                
+                if (phase === 'single') {
+                    current = voltage / Xc;
+                    formula_used = 'I (A) = V / Xc  ,  Xc = 1/(2πfC)';
+                } else {
+                    current = voltage / (Math.sqrt(3) * Xc);
+                    formula_used = 'I (A) = V / (√3 × Xc)  ,  Xc = 1/(2πfC)';
+                }
+                
+                let reactivePower;
+                if (phase === 'single') {
+                    reactivePower = voltage * current;
+                } else {
+                    reactivePower = Math.sqrt(3) * voltage * current;
+                }
+                
+                result = {
+                    'طريقة الحساب': 'حساب التيار من السعة',
+                    'سعة المكثف': `${round1(capacitance_uf)} µF`,
+                    ' الجهد': `${round0(voltage)} V`,
+                    'التردد': `${freq} Hz`,
+                    'النظام': phase === 'single' ? 'فاز واحد' : 'ثلاثة فاز',
+                    ' المفاعلة السعوية (Xc)': `${round2(Xc)} Ω`,
+                    ' التيار المتوقع': `${round2(current)} A`,
+                    'القدرة التفاعلية (Qc)': `${round0(reactivePower / 1000)} kVAR`,
+                    ' معامل القدرة المستهدف': targetPf,
+                    ' المعادلة المستخدمة': formula_used
+                };
+                
+                if (current > 50) {
+                    result[' توصية'] = ' تيار عالي (>50A) - تأكد من توصيلات المكثف';
+                } else if (current < 0.5) {
+                    result[' توصية'] = 'تيار ضعيف - السعة صغيرة أو الجهد منخفض';
+                } else {
+                    result[' توصية'] = ' تيار مناسب';
                 }
             }
-            if (vals.length === 0) continue;
-            let eq = (order === 'seriesFirst') ? seriesCalc(vals) : parallelCalc(vals);
-            branchEqs.push(eq);
-        }
-        if (branchEqs.length === 0) {
-            showToast('أدخل قيم صحيحة', 'warning');
-            return;
-        }
-        let total = (order === 'seriesFirst') ? parallelCalc(branchEqs) : seriesCalc(branchEqs);
-        showFullRes('السعة المكافئة (مختلط)', {
-            'ترتيب الحساب': order === 'seriesFirst' ? 'توالي ثم توازي' : 'توازي ثم توالي',
-            'عدد الفروع': branches,
-            'المكثفات في كل فرع': seriesLen,
-            'السعة الكلية': total.toFixed(5) + ' µF'
+            
+            if (freq === 60 && calcMode === 'cap') {
+                let currentVal = parseFloat(document.getElementById('c_a')?.value);
+                if (currentVal && currentVal > 0) {
+                    let equivalent_50Hz = currentVal * (60/50);
+                    result[' ملاحظة'] = `لو كان التردد 50Hz، التيار سيكون ≈ ${round1(equivalent_50Hz)} A لنفس السعة`;
+                }
+            }
+            
+            showFullRes('نتائج حساب المكثف', result);
         });
-    };
-    
-    const calcSimple = () => {
-        let currentNum = num;
-        if (isNaN(currentNum) || currentNum < 1) currentNum = 1;
         
-        let vals = [];
-        for (let i = 1; i <= currentNum; i++) {
-            let v = parseFloat(document.getElementById(`cap_${i}`).value);
-            if (isNaN(v)) {
-                showToast(`المكثف ${i} غير صحيح`, 'warning');
+        const modeSelect = document.querySelector('#modalBody #calc_mode');
+        if (modeSelect) {
+            const toggleSections = () => {
+                const isCapMode = document.getElementById('calc_mode').value === 'cap';
+                const capSection = document.getElementById('mode_cap_section');
+                const currentSection = document.getElementById('mode_current_section');
+                if (capSection) capSection.style.display = isCapMode ? 'block' : 'none';
+                if (currentSection) currentSection.style.display = isCapMode ? 'none' : 'block';
+            };
+            modeSelect.addEventListener('change', toggleSections);
+            setTimeout(toggleSections, 10);
+        }
+        return;
+    }
+    
+    else if (toolId === 'capacitors') {
+        title.innerText = 'توصيل المكثفات';
+        
+        let conn = 'parallel';
+        let num = 2;
+        let seriesLen = 2;
+        let branches = 2;
+        
+        let seriesCache = {}, parallelCache = {};
+
+        const seriesCalc = (arr) => {
+            let key = arr.join(',');
+            if (seriesCache[key]) return seriesCache[key];
+            let res = 1 / arr.reduce((a, b) => a + 1 / b, 0);
+            seriesCache[key] = res;
+            return res;
+        };
+        
+        const parallelCalc = (arr) => {
+            let key = arr.join(',');
+            if (parallelCache[key]) return parallelCache[key];
+            let res = arr.reduce((a, b) => a + b, 0);
+            parallelCache[key] = res;
+            return res;
+        };
+        
+        const clearResultsCap = () => {
+            const resultDisplay = document.getElementById('resultDisplay');
+            if (resultDisplay) resultDisplay.classList.add('hidden');
+        };
+        
+        const calcMixed = () => {
+            const order = document.getElementById('mixOrder').value;
+            const rows = branches;
+            const cols = seriesLen;
+            let branchEqs = [];
+            for (let r = 1; r <= rows; r++) {
+                let vals = [];
+                for (let c = 1; c <= cols; c++) {
+                    let inp = document.getElementById(`mix_${r}_${c}`);
+                    if (inp) {
+                        let v = parseFloat(inp.value);
+                        if (!isNaN(v) && v > 0) vals.push(v);
+                    }
+                }
+                if (vals.length === 0) continue;
+                let eq = (order === 'seriesFirst') ? seriesCalc(vals) : parallelCalc(vals);
+                branchEqs.push(eq);
+            }
+            if (branchEqs.length === 0) {
+                showToast('أدخل قيم صحيحة', 'warning');
                 return;
             }
-            vals.push(v);
-        }
-        let res = (conn === 'parallel') ? parallelCalc(vals) : seriesCalc(vals);
-        showFullRes('نتيجة التوصيل', {
-            'نوع التوصيل': conn === 'parallel' ? 'توازي' : 'توالي',
-            'القيم': vals.join(' , '),
-            'السعة المكافئة': res.toFixed(5) + ' µF'
-        });
-    };
-    
-    const genSimpleInputs = (count, containerId, prefix) => {
-        let html = '';
-        for (let i = 1; i <= count; i++) html += `<input type="number" step="any" id="${prefix}${i}" placeholder="C${i} µF" class="mb-2">`;
-        document.getElementById(containerId).innerHTML = `<div class="grid grid-cols-2 gap-2">${html}</div>`;
-    };
-    
-    // دالة منفصلة لتوليد الجدول المختلط مع عناوين صحيحة
-    const updateMixedTable = () => {
-        const container = document.getElementById('mixedInputs');
-        if (!container) return;
+            let total = (order === 'seriesFirst') ? parallelCalc(branchEqs) : seriesCalc(branchEqs);
+            showFullRes('السعة المكافئة (مختلط)', {
+                'ترتيب الحساب': order === 'seriesFirst' ? 'توالي ثم توازي' : 'توازي ثم توالي',
+                'عدد الفروع': branches,
+                'المكثفات في كل فرع': seriesLen,
+                'السعة الكلية': total.toFixed(5) + ' µF'
+            });
+        };
         
-        let rows = branches;
-        let cols = seriesLen;
-        
-        if (rows < 1) rows = 1;
-        if (cols < 1) cols = 1;
-        
-        let html = `<div class="overflow-x-auto"><table class="w-full border text-center text-sm"><thead><tr class="bg-blue-50"><th class="border p-1">الفرع</th>`;
-        for (let i = 1; i <= cols; i++) {
-            html += `<th class="border p-1">C${i}</th>`;
-        }
-        html += `</tr></thead><tbody>`;
-        
-        for (let r = 1; r <= rows; r++) {
-            html += `<tr><td class="border p-1 font-bold">فرع ${r}</td>`;
-            for (let c = 1; c <= cols; c++) {
-                html += `<td class="border p-1"><input type="number" step="any" id="mix_${r}_${c}" class="w-20 text-center"></td>`;
+        const calcSimple = () => {
+            let currentNum = num;
+            if (isNaN(currentNum) || currentNum < 1) currentNum = 1;
+            
+            let vals = [];
+            for (let i = 1; i <= currentNum; i++) {
+                let v = parseFloat(document.getElementById(`cap_${i}`).value);
+                if (isNaN(v)) {
+                    showToast(`المكثف ${i} غير صحيح`, 'warning');
+                    return;
+                }
+                vals.push(v);
             }
-            html += `</tr>`;
-        }
-        html += `</tbody></table></div>`;
-        container.innerHTML = html;
-    };
-    
-    // دالة لإنشاء الواجهة بالكامل (تُستخدم عند تغيير نوع التوصيل أو لأول مرة)
-    const render = () => {
-        clearResults();
-        let html = `<div class="flex gap-3 mb-2">
-                        <button id="connPar" class="tab-btn ${conn === 'parallel' ? 'active' : ''}">توازي</button>
-                        <button id="connSer" class="tab-btn ${conn === 'series' ? 'active' : ''}">توالي</button>
-                        <button id="connMix" class="tab-btn ${conn === 'mixed' ? 'active' : ''}">مختلط</button>
-                    </div>`;
+            let res = (conn === 'parallel') ? parallelCalc(vals) : seriesCalc(vals);
+            showFullRes('نتيجة التوصيل', {
+                'نوع التوصيل': conn === 'parallel' ? 'توازي' : 'توالي',
+                'القيم': vals.join(' , '),
+                'السعة المكافئة': res.toFixed(5) + ' µF'
+            });
+        };
         
-        if (conn === 'mixed') {
-            html += `<label>عدد المكثفات في كل فرع</label>
-                     <input type="number" id="seriesLen" min="1" max="6" value="${seriesLen}" class="mb-2">
-                     <label>عدد الفروع</label>
-                     <input type="number" id="branches" min="1" max="6" value="${branches}" class="mb-2">
-                     <label>ترتيب الحساب</label>
-                     <select id="mixOrder" class="mb-3">
-                         <option value="seriesFirst">توالي ثم توازي</option>
-                         <option value="parallelFirst">توازي ثم توالي</option>
-                     </select>
-                     <div id="mixedInputs"></div>`;
-        } else {
-            html += `<label>عدد المكثفات</label>
-                     <input type="number" id="numCaps" min="1" max="10" value="${num}" class="mb-2">
-                     <div id="capsInputs"></div>`;
-        }
+        const genSimpleInputs = (count, containerId, prefix) => {
+            let html = '';
+            for (let i = 1; i <= count; i++) html += `<input type="number" step="any" id="${prefix}${i}" placeholder="C${i} µF" class="mb-2">`;
+            document.getElementById(containerId).innerHTML = `<div class="grid grid-cols-2 gap-2">${html}</div>`;
+        };
         
-        body.innerHTML = html;
-        bindClearResultOnChange(body);
-        
-        if (conn === 'mixed') {
-            const seriesLenInput = document.getElementById('seriesLen');
-            const branchesInput = document.getElementById('branches');
-            const orderSelect = document.getElementById('mixOrder');
+        const updateMixedTable = () => {
+            const container = document.getElementById('mixedInputs');
+            if (!container) return;
             
-            // تعريف دالة لتحديث الجدول دون إعادة الرندر
-            const refreshTable = () => {
-                updateMixedTable();
-                clearResults();
-            };
+            let rows = branches;
+            let cols = seriesLen;
             
-            if (seriesLenInput) {
-                seriesLenInput.oninput = () => {
-                    let val = seriesLenInput.value.trim();
-                    if (val === '') return;
-                    let newVal = parseInt(val);
-                    if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
-                        seriesLen = newVal;
-                        refreshTable();
-                    }
+            if (rows < 1) rows = 1;
+            if (cols < 1) cols = 1;
+            
+            let html = `<div class="overflow-x-auto"><table class="w-full border text-center text-sm"><thead><tr class="bg-blue-50"><th class="border p-1">الفرع</th>`;
+            for (let i = 1; i <= cols; i++) {
+                html += `<th class="border p-1">C${i}</th>`;
+            }
+            html += `</tr></thead><tbody>`;
+            
+            for (let r = 1; r <= rows; r++) {
+                html += `<tr><td class="border p-1 font-bold">فرع ${r}</td>`;
+                for (let c = 1; c <= cols; c++) {
+                    html += `<td class="border p-1"><input type="number" step="any" id="mix_${r}_${c}" class="w-20 text-center"></td>`;
+                }
+                html += `</tr>`;
+            }
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+        };
+        
+        const renderCap = () => {
+            clearResultsCap();
+            let html = `<div class="flex gap-3 mb-2">
+                            <button id="connPar" class="tab-btn ${conn === 'parallel' ? 'active' : ''}">توازي</button>
+                            <button id="connSer" class="tab-btn ${conn === 'series' ? 'active' : ''}">توالي</button>
+                            <button id="connMix" class="tab-btn ${conn === 'mixed' ? 'active' : ''}">مختلط</button>
+                        </div>`;
+            
+            if (conn === 'mixed') {
+                html += `<label>عدد المكثفات في كل فرع</label>
+                         <input type="number" id="seriesLen" min="1" max="6" value="${seriesLen}" class="mb-2">
+                         <label>عدد الفروع</label>
+                         <input type="number" id="branches" min="1" max="6" value="${branches}" class="mb-2">
+                         <label>ترتيب الحساب</label>
+                         <select id="mixOrder" class="mb-3">
+                             <option value="seriesFirst">توالي ثم توازي</option>
+                             <option value="parallelFirst">توازي ثم توالي</option>
+                         </select>
+                         <div id="mixedInputs"></div>`;
+            } else {
+                html += `<label>عدد المكثفات</label>
+                         <input type="number" id="numCaps" min="1" max="10" value="${num}" class="mb-2">
+                         <div id="capsInputs"></div>`;
+            }
+            
+            body.innerHTML = html;
+            bindClearResultOnChange(body);
+            
+            if (conn === 'mixed') {
+                const seriesLenInput = document.getElementById('seriesLen');
+                const branchesInput = document.getElementById('branches');
+                const orderSelect = document.getElementById('mixOrder');
+                
+                const refreshTable = () => {
+                    updateMixedTable();
+                    clearResultsCap();
                 };
-                seriesLenInput.onblur = () => {
-                    let val = seriesLenInput.value.trim();
-                    if (val === '') {
-                        seriesLen = 1;
-                        seriesLenInput.value = 1;
-                        refreshTable();
-                    } else {
+                
+                if (seriesLenInput) {
+                    seriesLenInput.oninput = () => {
+                        let val = seriesLenInput.value.trim();
+                        if (val === '') return;
                         let newVal = parseInt(val);
-                        if (isNaN(newVal) || newVal < 1) {
+                        if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
+                            seriesLen = newVal;
+                            refreshTable();
+                        }
+                    };
+                    seriesLenInput.onblur = () => {
+                        let val = seriesLenInput.value.trim();
+                        if (val === '') {
                             seriesLen = 1;
                             seriesLenInput.value = 1;
                             refreshTable();
-                        } else if (newVal > 6) {
-                            seriesLen = 6;
-                            seriesLenInput.value = 6;
+                        } else {
+                            let newVal = parseInt(val);
+                            if (isNaN(newVal) || newVal < 1) {
+                                seriesLen = 1;
+                                seriesLenInput.value = 1;
+                                refreshTable();
+                            } else if (newVal > 6) {
+                                seriesLen = 6;
+                                seriesLenInput.value = 6;
+                                refreshTable();
+                            }
+                        }
+                    };
+                }
+                
+                if (branchesInput) {
+                    branchesInput.oninput = () => {
+                        let val = branchesInput.value.trim();
+                        if (val === '') return;
+                        let newVal = parseInt(val);
+                        if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
+                            branches = newVal;
                             refreshTable();
                         }
-                    }
-                };
-            }
-            
-            if (branchesInput) {
-                branchesInput.oninput = () => {
-                    let val = branchesInput.value.trim();
-                    if (val === '') return;
-                    let newVal = parseInt(val);
-                    if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
-                        branches = newVal;
-                        refreshTable();
-                    }
-                };
-                branchesInput.onblur = () => {
-                    let val = branchesInput.value.trim();
-                    if (val === '') {
-                        branches = 1;
-                        branchesInput.value = 1;
-                        refreshTable();
-                    } else {
-                        let newVal = parseInt(val);
-                        if (isNaN(newVal) || newVal < 1) {
+                    };
+                    branchesInput.onblur = () => {
+                        let val = branchesInput.value.trim();
+                        if (val === '') {
                             branches = 1;
                             branchesInput.value = 1;
                             refreshTable();
-                        } else if (newVal > 6) {
-                            branches = 6;
-                            branchesInput.value = 6;
-                            refreshTable();
+                        } else {
+                            let newVal = parseInt(val);
+                            if (isNaN(newVal) || newVal < 1) {
+                                branches = 1;
+                                branchesInput.value = 1;
+                                refreshTable();
+                            } else if (newVal > 6) {
+                                branches = 6;
+                                branchesInput.value = 6;
+                                refreshTable();
+                            }
                         }
-                    }
-                };
-            }
-            
-            // إنشاء الجدول الأولي
-            updateMixedTable();
-            
-            calcBtn.onclick = () => calcMixed();
-            calcBtn.style.display = 'flex';
-        } else {
-            const numCapsInput = document.getElementById('numCaps');
-            if (numCapsInput) {
-                numCapsInput.oninput = () => {
-                    let val = numCapsInput.value.trim();
-                    if (val === '') return;
-                    let newNum = parseInt(val);
-                    if (!isNaN(newNum) && newNum >= 1 && newNum <= 10) {
-                        num = newNum;
-                        genSimpleInputs(num, 'capsInputs', 'cap_');
-                        clearResults();
-                    }
-                };
-                numCapsInput.onblur = () => {
-                    let val = numCapsInput.value.trim();
-                    if (val === '') {
-                        num = 1;
-                        numCapsInput.value = 1;
-                        genSimpleInputs(1, 'capsInputs', 'cap_');
-                        clearResults();
-                    } else {
+                    };
+                }
+                
+                updateMixedTable();
+                calcBtn.onclick = () => calcMixed();
+                calcBtn.style.display = 'flex';
+            } else {
+                const numCapsInput = document.getElementById('numCaps');
+                if (numCapsInput) {
+                    numCapsInput.oninput = () => {
+                        let val = numCapsInput.value.trim();
+                        if (val === '') return;
                         let newNum = parseInt(val);
-                        if (isNaN(newNum) || newNum < 1) {
+                        if (!isNaN(newNum) && newNum >= 1 && newNum <= 10) {
+                            num = newNum;
+                            genSimpleInputs(num, 'capsInputs', 'cap_');
+                            clearResultsCap();
+                        }
+                    };
+                    numCapsInput.onblur = () => {
+                        let val = numCapsInput.value.trim();
+                        if (val === '') {
                             num = 1;
                             numCapsInput.value = 1;
                             genSimpleInputs(1, 'capsInputs', 'cap_');
-                            clearResults();
-                        } else if (newNum > 10) {
-                            num = 10;
-                            numCapsInput.value = 10;
-                            genSimpleInputs(10, 'capsInputs', 'cap_');
-                            clearResults();
+                            clearResultsCap();
+                        } else {
+                            let newNum = parseInt(val);
+                            if (isNaN(newNum) || newNum < 1) {
+                                num = 1;
+                                numCapsInput.value = 1;
+                                genSimpleInputs(1, 'capsInputs', 'cap_');
+                                clearResultsCap();
+                            } else if (newNum > 10) {
+                                num = 10;
+                                numCapsInput.value = 10;
+                                genSimpleInputs(10, 'capsInputs', 'cap_');
+                                clearResultsCap();
+                            }
                         }
-                    }
-                };
-            }
-            genSimpleInputs(num, 'capsInputs', 'cap_');
-            calcBtn.onclick = () => calcSimple();
-            calcBtn.style.display = 'flex';
-        }
-        
-        // أحداث أزرار نوع التوصيل
-        const parBtn = document.getElementById('connPar');
-        const serBtn = document.getElementById('connSer');
-        const mixBtn = document.getElementById('connMix');
-        if (parBtn) parBtn.onclick = () => { conn = 'parallel'; render(); };
-        if (serBtn) serBtn.onclick = () => { conn = 'series'; render(); };
-        if (mixBtn) mixBtn.onclick = () => { conn = 'mixed'; render(); };
-    };
-    
-    render();
-    calcBtn.style.display = 'flex';
-}
-//توصيل المقاومات
-   else if (toolId === 'resistors') {
-    title.innerText = 'توصيل المقاومات';
-    
-    let conn = 'parallel'; // 'parallel', 'series', 'mixed'
-    let num = 2;
-    let seriesLen = 2;
-    let branches = 2;
-    
-    let seriesCache = {}, parallelCache = {};
-
-    // قوانين المقاومات:
-    // التوالي: مجموع المقاومات
-    const seriesCalc = (arr) => {
-        let key = arr.join(',');
-        if (seriesCache[key]) return seriesCache[key];
-        let res = arr.reduce((a, b) => a + b, 0);
-        seriesCache[key] = res;
-        return res;
-    };
-    
-    // التوازي: مقلوب مجموع المقلوبات
-    const parallelCalc = (arr) => {
-        let key = arr.join(',');
-        if (parallelCache[key]) return parallelCache[key];
-        let res = 1 / arr.reduce((a, b) => a + 1 / b, 0);
-        parallelCache[key] = res;
-        return res;
-    };
-    
-    const clearResults = () => {
-        const resultDisplay = document.getElementById('resultDisplay');
-        if (resultDisplay) resultDisplay.classList.add('hidden');
-    };
-    
-    const calcMixed = () => {
-        const order = document.getElementById('mixOrder').value;
-        const rows = branches;
-        const cols = seriesLen;
-        let branchEqs = [];
-        for (let r = 1; r <= rows; r++) {
-            let vals = [];
-            for (let c = 1; c <= cols; c++) {
-                let inp = document.getElementById(`mix_${r}_${c}`);
-                if (inp) {
-                    let v = parseFloat(inp.value);
-                    if (!isNaN(v) && v > 0) vals.push(v);
+                    };
                 }
+                genSimpleInputs(num, 'capsInputs', 'cap_');
+                calcBtn.onclick = () => calcSimple();
+                calcBtn.style.display = 'flex';
             }
-            if (vals.length === 0) continue;
-            let eq = (order === 'seriesFirst') ? seriesCalc(vals) : parallelCalc(vals);
-            branchEqs.push(eq);
-        }
-        if (branchEqs.length === 0) {
-            showToast('أدخل قيم صحيحة', 'warning');
-            return;
-        }
-        let total = (order === 'seriesFirst') ? parallelCalc(branchEqs) : seriesCalc(branchEqs);
-        showFullRes('المقاومة المكافئة (مختلط)', {
-            'ترتيب الحساب': order === 'seriesFirst' ? 'توالي ثم توازي' : 'توازي ثم توالي',
-            'عدد الفروع': branches,
-            'المقاومات في كل فرع': seriesLen,
-            'المقاومة الكلية': total.toFixed(5) + ' Ω'
-        });
-    };
-    
-    const calcSimple = () => {
-        let currentNum = num;
-        if (isNaN(currentNum) || currentNum < 1) currentNum = 1;
+            
+            const parBtn = document.getElementById('connPar');
+            const serBtn = document.getElementById('connSer');
+            const mixBtn = document.getElementById('connMix');
+            if (parBtn) parBtn.onclick = () => { conn = 'parallel'; renderCap(); };
+            if (serBtn) serBtn.onclick = () => { conn = 'series'; renderCap(); };
+            if (mixBtn) mixBtn.onclick = () => { conn = 'mixed'; renderCap(); };
+        };
         
-        let vals = [];
-        for (let i = 1; i <= currentNum; i++) {
-            let v = parseFloat(document.getElementById(`res_${i}`).value);
-            if (isNaN(v)) {
-                showToast(`المقاوم ${i} غير صحيح`, 'warning');
+        renderCap();
+        calcBtn.style.display = 'flex';
+        return;
+    }
+    
+    else if (toolId === 'resistors') {
+        title.innerText = 'توصيل المقاومات';
+        
+        let conn = 'parallel';
+        let num = 2;
+        let seriesLen = 2;
+        let branches = 2;
+        
+        let seriesCache = {}, parallelCache = {};
+
+        const seriesCalc = (arr) => {
+            let key = arr.join(',');
+            if (seriesCache[key]) return seriesCache[key];
+            let res = arr.reduce((a, b) => a + b, 0);
+            seriesCache[key] = res;
+            return res;
+        };
+        
+        const parallelCalc = (arr) => {
+            let key = arr.join(',');
+            if (parallelCache[key]) return parallelCache[key];
+            let res = 1 / arr.reduce((a, b) => a + 1 / b, 0);
+            parallelCache[key] = res;
+            return res;
+        };
+        
+        const clearResultsRes = () => {
+            const resultDisplay = document.getElementById('resultDisplay');
+            if (resultDisplay) resultDisplay.classList.add('hidden');
+        };
+        
+        const calcMixed = () => {
+            const order = document.getElementById('mixOrder').value;
+            const rows = branches;
+            const cols = seriesLen;
+            let branchEqs = [];
+            for (let r = 1; r <= rows; r++) {
+                let vals = [];
+                for (let c = 1; c <= cols; c++) {
+                    let inp = document.getElementById(`mix_${r}_${c}`);
+                    if (inp) {
+                        let v = parseFloat(inp.value);
+                        if (!isNaN(v) && v > 0) vals.push(v);
+                    }
+                }
+                if (vals.length === 0) continue;
+                let eq = (order === 'seriesFirst') ? seriesCalc(vals) : parallelCalc(vals);
+                branchEqs.push(eq);
+            }
+            if (branchEqs.length === 0) {
+                showToast('أدخل قيم صحيحة', 'warning');
                 return;
             }
-            vals.push(v);
-        }
-        let res = (conn === 'parallel') ? parallelCalc(vals) : seriesCalc(vals);
-        showFullRes('نتيجة التوصيل', {
-            'نوع التوصيل': conn === 'parallel' ? 'توازي' : 'توالي',
-            'القيم': vals.join(' , '),
-            'المقاومة المكافئة': res.toFixed(5) + ' Ω'
-        });
-    };
-    
-    const genSimpleInputs = (count, containerId, prefix) => {
-        let html = '';
-        for (let i = 1; i <= count; i++) html += `<input type="number" step="any" id="${prefix}${i}" placeholder="R${i} Ω" class="mb-2">`;
-        document.getElementById(containerId).innerHTML = `<div class="grid grid-cols-2 gap-2">${html}</div>`;
-    };
-    
-    const updateMixedTable = () => {
-        const container = document.getElementById('mixedInputs');
-        if (!container) return;
+            let total = (order === 'seriesFirst') ? parallelCalc(branchEqs) : seriesCalc(branchEqs);
+            showFullRes('المقاومة المكافئة (مختلط)', {
+                'ترتيب الحساب': order === 'seriesFirst' ? 'توالي ثم توازي' : 'توازي ثم توالي',
+                'عدد الفروع': branches,
+                'المقاومات في كل فرع': seriesLen,
+                'المقاومة الكلية': total.toFixed(5) + ' Ω'
+            });
+        };
         
-        let rows = branches;
-        let cols = seriesLen;
-        
-        if (rows < 1) rows = 1;
-        if (cols < 1) cols = 1;
-        
-        let html = `<div class="overflow-x-auto"><table class="w-full border text-center text-sm"><thead><tr class="bg-blue-50"><th class="border p-1">الفرع</th>`;
-        for (let i = 1; i <= cols; i++) {
-            html += `<th class="border p-1">R${i}</th>`;
-        }
-        html += `</tr></thead><tbody>`;
-        
-        for (let r = 1; r <= rows; r++) {
-            html += `<tr><td class="border p-1 font-bold">فرع ${r}</td>`;
-            for (let c = 1; c <= cols; c++) {
-                html += `<td class="border p-1"><input type="number" step="any" id="mix_${r}_${c}" class="w-20 text-center" placeholder="Ω"></td>`;
+        const calcSimple = () => {
+            let currentNum = num;
+            if (isNaN(currentNum) || currentNum < 1) currentNum = 1;
+            
+            let vals = [];
+            for (let i = 1; i <= currentNum; i++) {
+                let v = parseFloat(document.getElementById(`res_${i}`).value);
+                if (isNaN(v)) {
+                    showToast(`المقاوم ${i} غير صحيح`, 'warning');
+                    return;
+                }
+                vals.push(v);
             }
-            html += `</tr>`;
-        }
-        html += `</tbody></table></div>`;
-        container.innerHTML = html;
-    };
-    
-    const render = () => {
-        clearResults();
-        let html = `<div class="flex gap-3 mb-2">
-                        <button id="connPar" class="tab-btn ${conn === 'parallel' ? 'active' : ''}">توازي</button>
-                        <button id="connSer" class="tab-btn ${conn === 'series' ? 'active' : ''}">توالي</button>
-                        <button id="connMix" class="tab-btn ${conn === 'mixed' ? 'active' : ''}">مختلط</button>
-                    </div>`;
+            let res = (conn === 'parallel') ? parallelCalc(vals) : seriesCalc(vals);
+            showFullRes('نتيجة التوصيل', {
+                'نوع التوصيل': conn === 'parallel' ? 'توازي' : 'توالي',
+                'القيم': vals.join(' , '),
+                'المقاومة المكافئة': res.toFixed(5) + ' Ω'
+            });
+        };
         
-        if (conn === 'mixed') {
-            html += `<label>عدد المقاومات في كل فرع</label>
-                     <input type="number" id="seriesLen" min="1" max="6" value="${seriesLen}" class="mb-2">
-                     <label>عدد الفروع</label>
-                     <input type="number" id="branches" min="1" max="6" value="${branches}" class="mb-2">
-                     <label>ترتيب الحساب</label>
-                     <select id="mixOrder" class="mb-3">
-                         <option value="seriesFirst">توالي ثم توازي</option>
-                         <option value="parallelFirst">توازي ثم توالي</option>
-                     </select>
-                     <div id="mixedInputs"></div>`;
-        } else {
-            html += `<label>عدد المقاومات</label>
-                     <input type="number" id="numRes" min="1" max="10" value="${num}" class="mb-2">
-                     <div id="resInputs"></div>`;
-        }
+        const genSimpleInputs = (count, containerId, prefix) => {
+            let html = '';
+            for (let i = 1; i <= count; i++) html += `<input type="number" step="any" id="${prefix}${i}" placeholder="R${i} Ω" class="mb-2">`;
+            document.getElementById(containerId).innerHTML = `<div class="grid grid-cols-2 gap-2">${html}</div>`;
+        };
         
-        body.innerHTML = html;
-        bindClearResultOnChange(body);
-        
-        if (conn === 'mixed') {
-            const seriesLenInput = document.getElementById('seriesLen');
-            const branchesInput = document.getElementById('branches');
-            const orderSelect = document.getElementById('mixOrder');
+        const updateMixedTable = () => {
+            const container = document.getElementById('mixedInputs');
+            if (!container) return;
             
-            const refreshTable = () => {
-                updateMixedTable();
-                clearResults();
-            };
+            let rows = branches;
+            let cols = seriesLen;
             
-            if (seriesLenInput) {
-                seriesLenInput.oninput = () => {
-                    let val = seriesLenInput.value.trim();
-                    if (val === '') return;
-                    let newVal = parseInt(val);
-                    if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
-                        seriesLen = newVal;
-                        refreshTable();
-                    }
+            if (rows < 1) rows = 1;
+            if (cols < 1) cols = 1;
+            
+            let html = `<div class="overflow-x-auto"><table class="w-full border text-center text-sm"><thead><tr class="bg-blue-50"><th class="border p-1">الفرع</th>`;
+            for (let i = 1; i <= cols; i++) {
+                html += `<th class="border p-1">R${i}</th>`;
+            }
+            html += `<table></thead><tbody>`;
+            
+            for (let r = 1; r <= rows; r++) {
+                html += `<tr><td class="border p-1 font-bold">فرع ${r}</td>`;
+                for (let c = 1; c <= cols; c++) {
+                    html += `<td class="border p-1"><input type="number" step="any" id="mix_${r}_${c}" class="w-20 text-center" placeholder="Ω"></td>`;
+                }
+                html += `</tr>`;
+            }
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+        };
+        
+        const renderRes = () => {
+            clearResultsRes();
+            let html = `<div class="flex gap-3 mb-2">
+                            <button id="connPar" class="tab-btn ${conn === 'parallel' ? 'active' : ''}">توازي</button>
+                            <button id="connSer" class="tab-btn ${conn === 'series' ? 'active' : ''}">توالي</button>
+                            <button id="connMix" class="tab-btn ${conn === 'mixed' ? 'active' : ''}">مختلط</button>
+                        </div>`;
+            
+            if (conn === 'mixed') {
+                html += `<label>عدد المقاومات في كل فرع</label>
+                         <input type="number" id="seriesLen" min="1" max="6" value="${seriesLen}" class="mb-2">
+                         <label>عدد الفروع</label>
+                         <input type="number" id="branches" min="1" max="6" value="${branches}" class="mb-2">
+                         <label>ترتيب الحساب</label>
+                         <select id="mixOrder" class="mb-3">
+                             <option value="seriesFirst">توالي ثم توازي</option>
+                             <option value="parallelFirst">توازي ثم توالي</option>
+                         </select>
+                         <div id="mixedInputs"></div>`;
+            } else {
+                html += `<label>عدد المقاومات</label>
+                         <input type="number" id="numRes" min="1" max="10" value="${num}" class="mb-2">
+                         <div id="resInputs"></div>`;
+            }
+            
+            body.innerHTML = html;
+            bindClearResultOnChange(body);
+            
+            if (conn === 'mixed') {
+                const seriesLenInput = document.getElementById('seriesLen');
+                const branchesInput = document.getElementById('branches');
+                const orderSelect = document.getElementById('mixOrder');
+                
+                const refreshTable = () => {
+                    updateMixedTable();
+                    clearResultsRes();
                 };
-                seriesLenInput.onblur = () => {
-                    let val = seriesLenInput.value.trim();
-                    if (val === '') {
-                        seriesLen = 1;
-                        seriesLenInput.value = 1;
-                        refreshTable();
-                    } else {
+                
+                if (seriesLenInput) {
+                    seriesLenInput.oninput = () => {
+                        let val = seriesLenInput.value.trim();
+                        if (val === '') return;
                         let newVal = parseInt(val);
-                        if (isNaN(newVal) || newVal < 1) {
+                        if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
+                            seriesLen = newVal;
+                            refreshTable();
+                        }
+                    };
+                    seriesLenInput.onblur = () => {
+                        let val = seriesLenInput.value.trim();
+                        if (val === '') {
                             seriesLen = 1;
                             seriesLenInput.value = 1;
                             refreshTable();
-                        } else if (newVal > 6) {
-                            seriesLen = 6;
-                            seriesLenInput.value = 6;
+                        } else {
+                            let newVal = parseInt(val);
+                            if (isNaN(newVal) || newVal < 1) {
+                                seriesLen = 1;
+                                seriesLenInput.value = 1;
+                                refreshTable();
+                            } else if (newVal > 6) {
+                                seriesLen = 6;
+                                seriesLenInput.value = 6;
+                                refreshTable();
+                            }
+                        }
+                    };
+                }
+                
+                if (branchesInput) {
+                    branchesInput.oninput = () => {
+                        let val = branchesInput.value.trim();
+                        if (val === '') return;
+                        let newVal = parseInt(val);
+                        if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
+                            branches = newVal;
                             refreshTable();
                         }
-                    }
-                };
-            }
-            
-            if (branchesInput) {
-                branchesInput.oninput = () => {
-                    let val = branchesInput.value.trim();
-                    if (val === '') return;
-                    let newVal = parseInt(val);
-                    if (!isNaN(newVal) && newVal >= 1 && newVal <= 6) {
-                        branches = newVal;
-                        refreshTable();
-                    }
-                };
-                branchesInput.onblur = () => {
-                    let val = branchesInput.value.trim();
-                    if (val === '') {
-                        branches = 1;
-                        branchesInput.value = 1;
-                        refreshTable();
-                    } else {
-                        let newVal = parseInt(val);
-                        if (isNaN(newVal) || newVal < 1) {
+                    };
+                    branchesInput.onblur = () => {
+                        let val = branchesInput.value.trim();
+                        if (val === '') {
                             branches = 1;
                             branchesInput.value = 1;
                             refreshTable();
-                        } else if (newVal > 6) {
-                            branches = 6;
-                            branchesInput.value = 6;
-                            refreshTable();
+                        } else {
+                            let newVal = parseInt(val);
+                            if (isNaN(newVal) || newVal < 1) {
+                                branches = 1;
+                                branchesInput.value = 1;
+                                refreshTable();
+                            } else if (newVal > 6) {
+                                branches = 6;
+                                branchesInput.value = 6;
+                                refreshTable();
+                            }
                         }
-                    }
-                };
-            }
-            
-            updateMixedTable();
-            
-            calcBtn.onclick = () => calcMixed();
-            calcBtn.style.display = 'flex';
-        } else {
-            const numResInput = document.getElementById('numRes');
-            if (numResInput) {
-                numResInput.oninput = () => {
-                    let val = numResInput.value.trim();
-                    if (val === '') return;
-                    let newNum = parseInt(val);
-                    if (!isNaN(newNum) && newNum >= 1 && newNum <= 10) {
-                        num = newNum;
-                        genSimpleInputs(num, 'resInputs', 'res_');
-                        clearResults();
-                    }
-                };
-                numResInput.onblur = () => {
-                    let val = numResInput.value.trim();
-                    if (val === '') {
-                        num = 1;
-                        numResInput.value = 1;
-                        genSimpleInputs(1, 'resInputs', 'res_');
-                        clearResults();
-                    } else {
+                    };
+                }
+                
+                updateMixedTable();
+                calcBtn.onclick = () => calcMixed();
+                calcBtn.style.display = 'flex';
+            } else {
+                const numResInput = document.getElementById('numRes');
+                if (numResInput) {
+                    numResInput.oninput = () => {
+                        let val = numResInput.value.trim();
+                        if (val === '') return;
                         let newNum = parseInt(val);
-                        if (isNaN(newNum) || newNum < 1) {
+                        if (!isNaN(newNum) && newNum >= 1 && newNum <= 10) {
+                            num = newNum;
+                            genSimpleInputs(num, 'resInputs', 'res_');
+                            clearResultsRes();
+                        }
+                    };
+                    numResInput.onblur = () => {
+                        let val = numResInput.value.trim();
+                        if (val === '') {
                             num = 1;
                             numResInput.value = 1;
                             genSimpleInputs(1, 'resInputs', 'res_');
-                            clearResults();
-                        } else if (newNum > 10) {
-                            num = 10;
-                            numResInput.value = 10;
-                            genSimpleInputs(10, 'resInputs', 'res_');
-                            clearResults();
+                            clearResultsRes();
+                        } else {
+                            let newNum = parseInt(val);
+                            if (isNaN(newNum) || newNum < 1) {
+                                num = 1;
+                                numResInput.value = 1;
+                                genSimpleInputs(1, 'resInputs', 'res_');
+                                clearResultsRes();
+                            } else if (newNum > 10) {
+                                num = 10;
+                                numResInput.value = 10;
+                                genSimpleInputs(10, 'resInputs', 'res_');
+                                clearResultsRes();
+                            }
                         }
-                    }
-                };
+                    };
+                }
+                genSimpleInputs(num, 'resInputs', 'res_');
+                calcBtn.onclick = () => calcSimple();
+                calcBtn.style.display = 'flex';
             }
-            genSimpleInputs(num, 'resInputs', 'res_');
-            calcBtn.onclick = () => calcSimple();
-            calcBtn.style.display = 'flex';
-        }
+            
+            const parBtn = document.getElementById('connPar');
+            const serBtn = document.getElementById('connSer');
+            const mixBtn = document.getElementById('connMix');
+            if (parBtn) parBtn.onclick = () => { conn = 'parallel'; renderRes(); };
+            if (serBtn) serBtn.onclick = () => { conn = 'series'; renderRes(); };
+            if (mixBtn) mixBtn.onclick = () => { conn = 'mixed'; renderRes(); };
+        };
         
-        const parBtn = document.getElementById('connPar');
-        const serBtn = document.getElementById('connSer');
-        const mixBtn = document.getElementById('connMix');
-        if (parBtn) parBtn.onclick = () => { conn = 'parallel'; render(); };
-        if (serBtn) serBtn.onclick = () => { conn = 'series'; render(); };
-        if (mixBtn) mixBtn.onclick = () => { conn = 'mixed'; render(); };
-    };
+        renderRes();
+        calcBtn.style.display = 'flex';
+        return;
+    }
     
-    render();
-    calcBtn.style.display = 'flex';
-}
-else if (toolId === 'voltage_drop') {
-  title.innerText = ' هبوط الجهد (دقيق)';
-  setContent(`
-    <label>التيار (أمبير)</label><input type="number" step="any" id="vd_i" value="20">
-    <label>طول الكابل (متر)</label><input type="number" step="any" id="vd_l" value="50">
-    <label>جهد المصدر (فولت)</label><input type="number" step="any" id="vd_v" value="220">
-    <label>مقطع السلك (مم²)</label><input type="number" step="any" id="vd_a" value="4">
-    <label>معامل القدرة (cosφ)</label><input type="number" step="0.01" id="vd_pf" value="0.85">
-    <div class="phase-selector">
-      <div class="phase-option selected" data-phase="single" onclick="setPhase(this,'single')">فاز واحد</div>
-      <div class="phase-option" data-phase="three" onclick="setPhase(this,'three')">ثلاثة فاز</div>
-    </div>
-    <div class="phase-selector">
-      <div class="phase-option selected" data-mat="cu" onclick="setMaterial(this,'cu')">نحاس</div>
-      <div class="phase-option" data-mat="al" onclick="setMaterial(this,'al')">ألمنيوم</div>
-    </div>
-    <label>الحد الأقصى (%)</label>
-    <select id="vd_limit"><option value="3">3% (إضاءة)</option><option value="5" selected>5% (قوى)</option></select>
-  `, () => {
-    let I=+vd_i.value, L=+vd_l.value, V=+vd_v.value, A=+vd_a.value, pf=+vd_pf.value, limit=+vd_limit.value;
-    if(I<=0||L<=0||V<=0||A<=0||pf<=0||pf>1) return showToast('قيم غير صالحة','warning');
-    let is3ph = document.querySelector('#modalBody [data-phase].selected')?.dataset.phase === 'three';
-    let isAl = document.querySelector('#modalBody [data-mat].selected')?.dataset.mat === 'al';
-    let rho20 = isAl ? 0.0282 : 0.0175;
-    let tempCoef = isAl ? 0.00403 : 0.00393;
-    let rho = rho20 * (1 + tempCoef * 50); // 70°C تشغيل
-    let Rm = rho / A;
-    let Xm = 0.0001;
-    let Zm = Math.hypot(Rm, Xm);
-    let vDrop = (is3ph ? Math.sqrt(3) : 2) * L * I * Zm * pf;
-    let pct = vDrop/V*100;
-    let status = pct<=limit ? ' مقبول' : `يفضل مقطع ${Math.ceil( (is3ph?Math.sqrt(3):2)*L*I*rho*pf / (V*limit/100) )} mm²`;
-    showFullRes('هبوط الجهد', { التيار:I+'A', الطول:L+'m', الجهد:V+'V', المقطع:A+'mm²', PF:pf, النظام:is3ph?'3 فاز':'1 فاز', المادة:isAl?'ألمنيوم':'نحاس', الهبوط:vDrop.toFixed(2)+'V', النسبة:pct.toFixed(2)+'%', الحالة:status });
-  });
-  window.setPhase = (btn,ph)=>{ document.querySelectorAll('#modalBody [data-phase]').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); clearResult(); };
-  window.setMaterial = (btn,mat)=>{ document.querySelectorAll('#modalBody [data-mat]').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); clearResult(); };
-}
-
-
-else if (toolId === 'motor_amp') {
+    else if (toolId === 'voltage_drop') {
+        title.innerText = ' هبوط الجهد (دقيق)';
+        setContent(`
+            <label>التيار (أمبير)</label><input type="number" step="any" id="vd_i" value="20">
+            <label>طول الكابل (متر)</label><input type="number" step="any" id="vd_l" value="50">
+            <label>جهد المصدر (فولت)</label><input type="number" step="any" id="vd_v" value="220">
+            <label>مقطع السلك (مم²)</label><input type="number" step="any" id="vd_a" value="4">
+            <label>معامل القدرة (cosφ)</label><input type="number" step="0.01" id="vd_pf" value="0.85">
+            <div class="phase-selector">
+                <div class="phase-option selected" data-phase="single" onclick="setPhase(this,'single')">فاز واحد</div>
+                <div class="phase-option" data-phase="three" onclick="setPhase(this,'three')">ثلاثة فاز</div>
+            </div>
+            <div class="phase-selector">
+                <div class="phase-option selected" data-mat="cu" onclick="setMaterial(this,'cu')">نحاس</div>
+                <div class="phase-option" data-mat="al" onclick="setMaterial(this,'al')">ألمنيوم</div>
+            </div>
+            <label>الحد الأقصى (%)</label>
+            <select id="vd_limit"><option value="3">3% (إضاءة)</option><option value="5" selected>5% (قوى)</option></select>
+        `, () => {
+            let I=+vd_i.value, L=+vd_l.value, V=+vd_v.value, A=+vd_a.value, pf=+vd_pf.value, limit=+vd_limit.value;
+            if(I<=0||L<=0||V<=0||A<=0||pf<=0||pf>1) return showToast('قيم غير صالحة','warning');
+            let is3ph = document.querySelector('#modalBody [data-phase].selected')?.dataset.phase === 'three';
+            let isAl = document.querySelector('#modalBody [data-mat].selected')?.dataset.mat === 'al';
+            let rho20 = isAl ? 0.0282 : 0.0175;
+            let tempCoef = isAl ? 0.00403 : 0.00393;
+            let rho = rho20 * (1 + tempCoef * 50);
+            let Rm = rho / A;
+            let Xm = 0.0001;
+            let Zm = Math.hypot(Rm, Xm);
+            let vDrop = (is3ph ? Math.sqrt(3) : 2) * L * I * Zm * pf;
+            let pct = vDrop/V*100;
+            let status = pct<=limit ? ' مقبول' : `يفضل مقطع ${Math.ceil( (is3ph?Math.sqrt(3):2)*L*I*rho*pf / (V*limit/100) )} mm²`;
+            showFullRes('هبوط الجهد', { التيار:I+'A', الطول:L+'m', الجهد:V+'V', المقطع:A+'mm²', PF:pf, النظام:is3ph?'3 فاز':'1 فاز', المادة:isAl?'ألمنيوم':'نحاس', الهبوط:vDrop.toFixed(2)+'V', النسبة:pct.toFixed(2)+'%', الحالة:status });
+        });
+        window.setPhase = (btn,ph)=>{ document.querySelectorAll('#modalBody [data-phase]').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); clearResult(); };
+        window.setMaterial = (btn,mat)=>{ document.querySelectorAll('#modalBody [data-mat]').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); clearResult(); };
+        return;
+    }
+    
+    else if (toolId === 'motor_amp') {
         title.innerText = ' حساب تيار المحرك';
         setContent(`
-           <div class="grid gap-3">
-   
-    <div>
-        <label class="block mb-1 text-sm font-semibold">القدرة</label>
-        <div class="flex gap-2">
-            <input type="number" step="any" id="power_val" value="1.5" >
-            <select id="power_unit" >
-                <option value="hp">حصان (HP)</option>
-                <option value="kw">كيلووات (kW)</option>
-                <option value="w">وات (w)</option>
-            </select>
-        </div>
-    </div>
-    <div>
-        <label class="block text-sm font-semibold">الجهد (V)</label>
-        <input type="number" step="any" id="ma_v" value="220" class="w-full p-1.5 border rounded-lg">
-    </div>
-    <div>
-        <label class="block text-sm font-semibold">الكفاءة (η)</label>
-        <input type="number" step="any" id="ma_eff" value="0.9" class="w-full p-1.5 border rounded-lg">
-    </div>
-    <div>
-        <label class="block text-sm font-semibold">معامل القدرة (PF)</label>
-        <input type="number" step="any" id="ma_pf" value="0.85" class="w-full p-1.5 border rounded-lg">
-    </div>
-    <div class="phase-selector flex gap-2">
-        <div class="phase-option selected flex-1 text-center" data-phase="single" onclick="setPhase(this,'single')"> فاز واحد</div>
-        <div class="phase-option flex-1 text-center" data-phase="three" onclick="setPhase(this,'three')">ثلاثة فاز</div>
-    </div>
-</div>
+            <div class="grid gap-3">
+                <div>
+                    <label class="block mb-1 text-sm font-semibold">القدرة</label>
+                    <div class="flex gap-2">
+                        <input type="number" step="any" id="power_val" value="1.5">
+                        <select id="power_unit">
+                            <option value="hp">حصان (HP)</option>
+                            <option value="kw">كيلووات (kW)</option>
+                            <option value="w">وات (w)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold">الجهد (V)</label>
+                    <input type="number" step="any" id="ma_v" value="220" class="w-full p-1.5 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold">الكفاءة (η)</label>
+                    <input type="number" step="any" id="ma_eff" value="0.9" class="w-full p-1.5 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold">معامل القدرة (PF)</label>
+                    <input type="number" step="any" id="ma_pf" value="0.85" class="w-full p-1.5 border rounded-lg">
+                </div>
+                <div class="phase-selector flex gap-2">
+                    <div class="phase-option selected flex-1 text-center" data-phase="single" onclick="setPhase(this,'single')"> فاز واحد</div>
+                    <div class="phase-option flex-1 text-center" data-phase="three" onclick="setPhase(this,'three')">ثلاثة فاز</div>
+                </div>
+            </div>
         `, () => {
-            // تعريف دالة اختيار الطور محلياً
             window.setPhase = function(btn, phase) {
                 document.querySelectorAll('#modalBody .phase-option[data-phase]').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
@@ -5612,7 +4709,6 @@ else if (toolId === 'motor_amp') {
                 });
             };
 
-            // ربط الأحداث لمسح النتيجة
             ['power_val', 'power_unit', 'ma_v', 'ma_eff', 'ma_pf'].forEach(id => {
                 let el = document.getElementById(id);
                 if (el) el.addEventListener('input', () => { if (typeof clearResult === 'function') clearResult(); });
@@ -5621,10 +4717,279 @@ else if (toolId === 'motor_amp') {
             let btn = document.getElementById('calculateBtn');
             if (btn) btn.onclick = () => (typeof withLoading === 'function' ? withLoading(btn, calculate) : calculate());
         });
-}
-
-    else { 
-        closeModal(); 
-        showToast('جاري التحديث', 'info'); 
+        return;
+    }
+    
+    else if (toolId === 'universal_conv') {
+        title.innerText = ' محول شامل';
+        const convDB = {
+            "التبريد (Cooling)": {
+                "وحدة حرارية بريطانية (btu)": 1,
+                "حصان تبريد (hp)": 8000,
+                "طن تبريد (ton)": 12000,
+                "كيلوواط تبريد (kw_t)": 10723.86058981,
+                "سعر حراري في الساعة (kcal_h)": 3.96832,
+                "واط تبريد (w_t)": 10.72386058981,
+                "مليون وحدة حرارية في الساعة (MBH)": 1000,
+                "ميجاواط تبريد (MW_t)": 10723860.58981
+            },
+            "الطول (Length)": {
+                "متر (m)": 1,
+                "سنتيمتر (cm)": 0.01,
+                "مليمتر (mm)": 0.001,
+                "كيلومتر (km)": 1000,
+                "بوصة (in)": 0.0254,
+                "قدم (ft)": 0.3048,
+                "ياردة (yd)": 0.9144,
+                "ميل (mi)": 1609.344,
+                "ميل بحري (nmi)": 1852,
+                "ميل (mil)": 0.0000254,
+                "ميكرومتر (µm)": 0.000001,
+                "نانومتر (nm)": 1e-9,
+                "ديسيمتر (dm)": 0.1,
+                "شبر (hand)": 0.1016,
+                "فرسخ (league)": 4828.032,
+                "أنغستروم (Å)": 1e-10
+            },
+            "المساحة (Area)": {
+                "متر² (m2)": 1,
+                "سنتيمتر² (cm²)": 0.0001,
+                "مليمتر² (mm²)": 0.000001,
+                "كيلومتر² (km²)": 1000000,
+                "بوصة² (in²)": 0.00064516,
+                "قدم² (ft²)": 0.09290304,
+                "ياردة² (yd²)": 0.83612736,
+                "آكر (ac)": 4046.856,
+                "هكتار (ha)": 10000,
+                "فدان (f)": 4200,
+                "قيراط (k)": 175,
+                "سهم (s)": 7.29166667,
+                "دونم (dunam)": 1000,
+                "ميل² (mi2)": 2589988.11,
+                "سنتيار (ca)": 1,
+            },
+            "الحجم (Volume)": {
+                "متر³ (m³)": 1,
+                "لتر (l)": 0.001,
+                "ميليلتر (ml)": 0.000001,
+                "سنتيمتر³ (cm³)": 0.000001,
+                "غالون أمريكي (gal_us)": 0.00378541,
+                "غالون بريطاني (gal_uk)": 0.00454609,
+                "قدم³ (ft³)": 0.0283168,
+                "بوصة³ (in³)": 0.000016387,
+                "برميل (bbl)": 0.158987,
+                "كوارت أمريكي (qt_us)": 0.000946353,
+                "باينت أمريكي (pt_us)": 0.000473176,
+                "كوب أمريكي (cup_us)": 0.000236588,
+                "ملعقة كبيرة (tbsp)": 0.0000147868,
+                "ملعقة صغيرة (tsp)": 0.00000492892
+            },
+            "الكتلة (Mass)": {
+                "كيلوجرام (kg)": 1,
+                "جرام (g)": 0.001,
+                "ميليجرام (mg)": 0.000001,
+                "باوند (lb)": 0.45359237,
+                "أونصة (oz)": 0.02834952,
+                "طن متري (ton_metric)": 1000,
+                "طن أمريكي (ton_us)": 907.1847,
+                "طن بريطاني (ton_uk)": 1016.047,
+                "قيراط (ct)": 0.0002,
+                "حبة (gr)": 0.0000647989,
+                "سلاج (slug)": 14.5939
+            },
+            "الزمن (Time)": {
+                "ثانية (s)": 1,
+                "دقيقة (min)": 60,
+                "ساعة (h)": 3600,
+                "يوم (day)": 86400,
+                "أسبوع (week)": 604800,
+                "سنة (year)": 31536000,
+                "ميلي ثانية (ms)": 0.001,
+                "ميكروثانية (µs)": 0.000001,
+                "نانوثانية (ns)": 1e-9,
+                "شهر (month)": 2628000,
+                "عقد (decade)": 315360000
+            },
+            "السرعة (Velocity)": {
+                "متر / ثانية (m/s)": 1,
+                "كيلومتر / ساعة (km/h)": 0.277778,
+                "قدم / ثانية (ft/s)": 0.3048,
+                "ميل / ساعة (mph)": 0.44704,
+                "عقدة (knot)": 0.514444,
+                "سنتيمتر / ثانية (cm/s)": 0.01,
+                "ماخ (mach)": 340.3
+            },
+            "التسارع (Acceleration)": {
+                "متر / ثانية مربع (m/s2)": 1,
+                "قدم / ثانية مربع (ft/s2)": 0.3048,
+                "جاذبية أرضية (g_force)": 9.80665,
+                "جال (gal)": 0.01
+            },
+            "القوة (Force)": {
+                "نيوتن (n)": 1,
+                "كيلونيوتن (kn)": 1000,
+                "باوند قوة (lbf)": 4.44822,
+                "كيلوجرام قوة (kgf)": 9.80665,
+                "داين (dyn)": 0.00001,
+                "ستين (sn)": 1000,
+                "ميجانيوتن (MN)": 1000000
+            },
+            "درجة الحرارة (Temperature)": {
+                "سيليسيوس (t°c)": 1,
+                "فهرنهايت (r°c)": 1,
+                "كلفن (T°K)": 1,
+                "رانكين (T°R)": 1
+            },
+            "الضغط (Pressure)": {
+                "باسكال (pa)": 1,
+                "كيلوباسكال (kpa)": 1000,
+                "ميجاباسكال (mpa)": 1000000,
+                "بار (bar)": 100000,
+                "مليبار (mbar)": 100,
+                "رطل لكل بوصة مربعة (psi)": 6894.76,
+                "ضغط جوي (atm)": 101325,
+                "تور (torr)": 133.322,
+                "مليمتر زئبق (mmhg)": 133.322,
+                "بوصة زئبق (inhg)": 3386.39,
+                "بوصة ماء (inw.c)": 248.84,
+                "قدم ماء (ftH2O)": 2989.07,
+                "كيلوجرام قوة لكل سنتيمتر مربع (kgf/cm2)": 98066.5
+            },
+            "الطاقة (Energy)": {
+                "جول (j)": 1,
+                "كيلوجول (kj)": 1000,
+                "ميجاجول (mj)": 1000000,
+                "سعرة حرارية (cal)": 4.184,
+                "كيلوسعرة (kcal)": 4184,
+                "وحدة حرارية بريطانية (btu)": 1055.056,
+                "كيلوواط ساعي (kwh)": 3600000,
+                "إلكترون فولت (ev)": 1.60218e-19,
+                "قدم-باوند (ft-lb)": 1.355818,
+                "ثيرم (therm)": 105505600,
+                "طن نفط مكافئ (toe)": 41868000000,
+                "حصان-ساعة (hp·h)": 2684519.5
+            },
+            "القدرة (Power)": {
+                "واط (w)": 1,
+                "كيلوواط (kw)": 1000,
+                "ميجاواط (mw)": 1000000,
+                "حصان متري (hp_metric)": 735.499,
+                "حصان إمبراطوري (hp_imperial)": 745.7,
+                "وحدة حرارية بريطانية لكل ساعة (btu/h)": 0.293071,
+                "طن تبريد (ton_refrig)": 3516.85,
+                "سعرة حرارية لكل ساعة (kcal/h)": 1.16222,
+                "قدم-باوند لكل ثانية (ft·lb/s)": 1.35582
+            },
+            "الزخم (Momentum)": {
+                "كيلوجرام.متر لكل ثانية (kg.m/s)": 1,
+                "باوند.قدم لكل ثانية (lb.ft/s)": 0.138255,
+                "نيوتن.ثانية (N·s)": 1
+            },
+            "الكثافة (Density)": {
+                "كيلوجرام لكل متر مكعب (kg/m3)": 1,
+                "جرام لكل سنتيمتر مكعب (g/cm3)": 1000,
+                "باوند لكل قدم مكعب (lb/ft3)": 16.01846,
+                "باوند لكل بوصة مكعبة (lb/in3)": 27679.9,
+                "سلاج لكل قدم مكعب (slug/ft3)": 515.379,
+                "طن لكل متر مكعب (t/m3)": 1000
+            },
+            "التردد (Frequency)": {
+                "هرتز (hz)": 1,
+                "كيلوهرتز (khz)": 1000,
+                "ميجاهرتز (mhz)": 1000000,
+                "جيجاهرتز (ghz)": 1000000000,
+                "دورة لكل دقيقة (rpm)": 0.0166667,
+                "دورة لكل ثانية (cps)": 1,
+                "مليهرتز (mhz)": 0.001
+            },
+            "الشحنة الكهربائية (Charge)": {
+                "كولوم (c)": 1,
+                "أمبير-ساعة (ah)": 3600,
+                "ملي أمبير-ساعة (mah)": 3.6,
+                "فاراداي (F)": 96485,
+                "ستات كولوم (statC)": 3.33564e-10
+            },
+            "التيار الكهربائي (Current)": {
+                "أمبير (a)": 1,
+                "ملي أمبير (ma)": 0.001,
+                "كيلو أمبير (ka)": 1000,
+                "ميكرو أمبير (µa)": 0.000001,
+                "نانوأمبير (na)": 1e-9
+            },
+            "الجهد الكهربائي (Voltage)": {
+                "فولت (v)": 1,
+                "ملي فولت (mv)": 0.001,
+                "كيلوفولت (kv)": 1000,
+                "ميكروفولت (µv)": 0.000001,
+                "ميجافولت (mv)": 1000000
+            },
+            "المقاومة (Resistance)": {
+                "أوم (ohm)": 1,
+                "كيلوأوم (kohm)": 1000,
+                "ميجاأوم (mohm)": 1000000,
+                "ملي أوم (mΩ)": 0.001,
+                "ميكروأوم (µΩ)": 0.000001
+            },
+            "السعة الكهربائية (Capacitance)": {
+                "فاراد (f)": 1,
+                "ميكروفاراد (uf)": 0.000001,
+                "نانوفاراد (nf)": 1e-9,
+                "بيكوفاراد (pf)": 1e-12,
+                "ملي فاراد (mf)": 0.001,
+                "كيلوفاراد (kf)": 1000
+            },
+        };
+        
+        setContent(`
+            <label>الفئة</label>
+            <select id="cv_c">${Object.keys(convDB).map(c=>`<option>${c}</option>`).join('')}</select>
+            <label>القيمة</label>
+            <input type="number" id="cv_v" value="1">
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
+                <div><label>من</label><select id="cv_f"></select></div>
+                <div style="text-align: center;"><button class="swap-btn" id="swapConvBtn"><i class="fas fa-sync-alt"></i></button></div>
+                <div><label>إلى</label><select id="cv_t"></select></div>
+            </div>
+        `, () => {
+            const cat = document.getElementById('cv_c').value;
+            const val = parseFloat(document.getElementById('cv_v').value);
+            const from = document.getElementById('cv_f').value;
+            const to = document.getElementById('cv_t').value;
+            if(isNaN(val)) { showToast('أدخل قيمة رقمية', 'warning'); return; }
+            let res;
+            if (cat === 'درجة الحرارة (Temperature)') {
+                let c;
+                if (from === 'c') c = val;
+                else if (from === 'f') c = (val - 32) * 5 / 9;
+                else if (from === 'k') c = val - 273.15;
+                else if (from === 'r') c = (val - 491.67) * 5 / 9;
+                if (to === 'c') res = c;
+                else if (to === 'f') res = c * 9 / 5 + 32;
+                else if (to === 'k') res = c + 273.15;
+                else if (to === 'r') res = c * 9 / 5 + 491.67;
+            } else {
+                res = (val * convDB[cat][from]) / convDB[cat][to];
+            }
+            showFullRes('تحويل الوحدات', {'الفئة':cat,'القيمة':val+' '+from,'النتيجة   ':res.toFixed(4)+' '+to});
+        });
+        
+        const updateConvUIDebounced = debounce(() => {
+            let cat = document.getElementById('cv_c').value;
+            let units = Object.keys(convDB[cat]);
+            document.getElementById('cv_f').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
+            document.getElementById('cv_t').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
+            clearResult();
+        }, 100);
+        document.getElementById('cv_c').onchange = updateConvUIDebounced;
+        updateConvUIDebounced();
+        document.getElementById('cv_f').onchange = () => clearResult();
+        document.getElementById('cv_t').onchange = () => clearResult();
+        document.getElementById('swapConvBtn').onclick = () => { let f=document.getElementById('cv_f'); let t=document.getElementById('cv_t'); let tmp=f.value; f.value=t.value; t.value=tmp; clearResult(); };
+        return;
+    }
+    
+    else {
+        closeModal();
+        showToast('جاري التحديث', 'info');
     }
 };
