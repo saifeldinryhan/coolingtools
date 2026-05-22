@@ -1,9 +1,4 @@
-// === إعدادات السكريبت الخارجي (من sw.js) ===
-self.options = {
-    "domain": "3nbf4.com",
-    "zoneId": 10879922
-};
-self.lary = "";
+
 
 // === ثوابت التخزين المؤقت (من service-worker.js) ===
 const CACHE_VERSION = "cooling-tools-v1.22";
@@ -79,6 +74,3 @@ self.addEventListener("fetch", event => {
   }
   // للطلبات الأخرى: لا نستدعي respondWith، مما يسمح للسكريبت الخارجي بالتعامل معها
 });
-
-// === استيراد السكريبت الخارجي (بعد تعريف مستمعي الطلبات لضمان ترتيب التنفيذ) ===
-importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw');
