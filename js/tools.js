@@ -1,24 +1,5 @@
 window.openTool = function(toolId) {
     // ------------------- منطق فتح الرابط الإعلاني (مرة كل 3 دقائق لكل أداة) -------------------
-    const AD_URL = 'https://omg10.com/4/10598715'; // 
-    const AD_COOLDOWN_MS = 3 * 60 * 1000; // 3 دقائق
-
-    // دالة غير متزامنة للتحقق من وجود اتصال إنترنت فعلي
-    const checkInternet = async () => {
-        // فحص أولي سريع
-        if (!navigator.onLine) return false;
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 1000);
-            // محاولة جلب ملف صغير من خادم Google (يعمل حتى مع الـ AdBlock)
-            await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', signal: controller.signal });
-            clearTimeout(timeoutId);
-            return true;
-        } catch {
-            return false;
-        }
-    };
-
     // قراءة وقت آخر فتح للإعلان لهذه الأداة من localStorage
     const adClickTimesRaw = localStorage.getItem('toolAdClickTimes');
     let adClickTimes = adClickTimesRaw ? JSON.parse(adClickTimesRaw) : {};
@@ -92,228 +73,9 @@ else if(toolId === 'capacitor_table') {
     
     // أداة المحول الشامل
     else if(toolId === 'universal_conv') { 
-        title.innerText = ' محول شامل';
-        const convDB = {
-  "التبريد (Cooling)": {
-    "وحدة حرارية بريطانية (btu)": 1,
-    "حصان تبريد (hp)": 8000,
-    "طن تبريد (ton)": 12000,
-    "كيلوواط تبريد (kw_t)": 10723.86058981,
-    "سعر حراري في الساعة (kcal_h)": 3.96832,
-    "واط تبريد (w_t)": 10.72386058981,
-    "مليون وحدة حرارية في الساعة (MBH)": 1000,
-    "ميجاواط تبريد (MW_t)": 10723860.58981
-  },
-  "الطول (Length)": {
-    "متر (m)": 1,
-    "سنتيمتر (cm)": 0.01,
-    "مليمتر (mm)": 0.001,
-    "كيلومتر (km)": 1000,
-    "بوصة (in)": 0.0254,
-    "قدم (ft)": 0.3048,
-    "ياردة (yd)": 0.9144,
-    "ميل (mi)": 1609.344,
-    "ميل بحري (nmi)": 1852,
-    "ميل (mil)": 0.0000254,
-    "ميكرومتر (µm)": 0.000001,
-    "نانومتر (nm)": 1e-9,
-    "ديسيمتر (dm)": 0.1,
-    "شبر (hand)": 0.1016,
-    "فرسخ (league)": 4828.032,
-    "أنغستروم (Å)": 1e-10
-  },
-  "المساحة (Area)": {
-  "متر² (m2)": 1,
-  "سنتيمتر² (cm²)": 0.0001,
-  "مليمتر² (mm²)": 0.000001,
-  "كيلومتر² (km²)": 1000000,
-  "بوصة² (in²)": 0.00064516,
-  "قدم² (ft²)": 0.09290304,
-  "ياردة² (yd²)": 0.83612736,
-  "آكر (ac)": 4046.856,
-  "هكتار (ha)": 10000,
-  "فدان (f)": 4200,
-  "قيراط (k)": 175,
-  "سهم (s)": 7.29166667,
-  "دونم (dunam)": 1000,
-  "ميل² (mi2)": 2589988.11,
-  "سنتيار (ca)": 1,
-
-},
-  "الحجم (Volume)": {
-    "متر³ (m³)": 1,
-    "لتر (l)": 0.001,
-    "ميليلتر (ml)": 0.000001,
-    "سنتيمتر³ (cm³)": 0.000001,
-    "غالون أمريكي (gal_us)": 0.00378541,
-    "غالون بريطاني (gal_uk)": 0.00454609,
-    "قدم³ (ft³)": 0.0283168,
-    "بوصة³ (in³)": 0.000016387,
-    "برميل (bbl)": 0.158987,
-    "كوارت أمريكي (qt_us)": 0.000946353,
-    "باينت أمريكي (pt_us)": 0.000473176,
-    "كوب أمريكي (cup_us)": 0.000236588,
-    "ملعقة كبيرة (tbsp)": 0.0000147868,
-    "ملعقة صغيرة (tsp)": 0.00000492892
-  },
-  "الكتلة (Mass)": {
-    "كيلوجرام (kg)": 1,
-    "جرام (g)": 0.001,
-    "ميليجرام (mg)": 0.000001,
-    "باوند (lb)": 0.45359237,
-    "أونصة (oz)": 0.02834952,
-    "طن متري (ton_metric)": 1000,
-    "طن أمريكي (ton_us)": 907.1847,
-    "طن بريطاني (ton_uk)": 1016.047,
-    "قيراط (ct)": 0.0002,
-    "حبة (gr)": 0.0000647989,
-    "سلاج (slug)": 14.5939
-  },
-  "الزمن (Time)": {
-    "ثانية (s)": 1,
-    "دقيقة (min)": 60,
-    "ساعة (h)": 3600,
-    "يوم (day)": 86400,
-    "أسبوع (week)": 604800,
-    "سنة (year)": 31536000,
-    "ميلي ثانية (ms)": 0.001,
-    "ميكروثانية (µs)": 0.000001,
-    "نانوثانية (ns)": 1e-9,
-    "شهر (month)": 2628000,
-    "عقد (decade)": 315360000
-  },
-  "السرعة (Velocity)": {
-    "متر / ثانية (m/s)": 1,
-    "كيلومتر / ساعة (km/h)": 0.277778,
-    "قدم / ثانية (ft/s)": 0.3048,
-    "ميل / ساعة (mph)": 0.44704,
-    "عقدة (knot)": 0.514444,
-    "سنتيمتر / ثانية (cm/s)": 0.01,
-    "ماخ (mach)": 340.3
-  },
-  "التسارع (Acceleration)": {
-    "متر / ثانية مربع (m/s2)": 1,
-    "قدم / ثانية مربع (ft/s2)": 0.3048,
-    "جاذبية أرضية (g_force)": 9.80665,
-    "جال (gal)": 0.01
-  },
-  "القوة (Force)": {
-    "نيوتن (n)": 1,
-    "كيلونيوتن (kn)": 1000,
-    "باوند قوة (lbf)": 4.44822,
-    "كيلوجرام قوة (kgf)": 9.80665,
-    "داين (dyn)": 0.00001,
-    "ستين (sn)": 1000,
-    "ميجانيوتن (MN)": 1000000
-  },
-  "درجة الحرارة (Temperature)": {
-    "سيليسيوس (t°c)": 1,
-    "فهرنهايت (r°c)": 1,
-    "كلفن (T°K)": 1,
-    "رانكين (T°R)": 1
-  },
-  "الضغط (Pressure)": {
-    "باسكال (pa)": 1,
-    "كيلوباسكال (kpa)": 1000,
-    "ميجاباسكال (mpa)": 1000000,
-    "بار (bar)": 100000,
-    "مليبار (mbar)": 100,
-    "رطل لكل بوصة مربعة (psi)": 6894.76,
-    "ضغط جوي (atm)": 101325,
-    "تور (torr)": 133.322,
-    "مليمتر زئبق (mmhg)": 133.322,
-    "بوصة زئبق (inhg)": 3386.39,
-    "بوصة ماء (inw.c)": 248.84,
-    "قدم ماء (ftH2O)": 2989.07,
-    "كيلوجرام قوة لكل سنتيمتر مربع (kgf/cm2)": 98066.5
-  },
-  "الطاقة (Energy)": {
-    "جول (j)": 1,
-    "كيلوجول (kj)": 1000,
-    "ميجاجول (mj)": 1000000,
-    "سعرة حرارية (cal)": 4.184,
-    "كيلوسعرة (kcal)": 4184,
-    "وحدة حرارية بريطانية (btu)": 1055.056,
-    "كيلوواط ساعي (kwh)": 3600000,
-    "إلكترون فولت (ev)": 1.60218e-19,
-    "قدم-باوند (ft-lb)": 1.355818,
-    "ثيرم (therm)": 105505600,
-    "طن نفط مكافئ (toe)": 41868000000,
-    "حصان-ساعة (hp·h)": 2684519.5
-  },
-  "القدرة (Power)": {
-    "واط (w)": 1,
-    "كيلوواط (kw)": 1000,
-    "ميجاواط (mw)": 1000000,
-    "حصان متري (hp_metric)": 735.499,
-    "حصان إمبراطوري (hp_imperial)": 745.7,
-    "وحدة حرارية بريطانية لكل ساعة (btu/h)": 0.293071,
-    "طن تبريد (ton_refrig)": 3516.85,
-    "سعرة حرارية لكل ساعة (kcal/h)": 1.16222,
-    "قدم-باوند لكل ثانية (ft·lb/s)": 1.35582
-  },
-  "الزخم (Momentum)": {
-    "كيلوجرام.متر لكل ثانية (kg.m/s)": 1,
-    "باوند.قدم لكل ثانية (lb.ft/s)": 0.138255,
-    "نيوتن.ثانية (N·s)": 1
-  },
-  "الكثافة (Density)": {
-    "كيلوجرام لكل متر مكعب (kg/m3)": 1,
-    "جرام لكل سنتيمتر مكعب (g/cm3)": 1000,
-    "باوند لكل قدم مكعب (lb/ft3)": 16.01846,
-    "باوند لكل بوصة مكعبة (lb/in3)": 27679.9,
-    "سلاج لكل قدم مكعب (slug/ft3)": 515.379,
-    "طن لكل متر مكعب (t/m3)": 1000
-  },
-  "التردد (Frequency)": {
-    "هرتز (hz)": 1,
-    "كيلوهرتز (khz)": 1000,
-    "ميجاهرتز (mhz)": 1000000,
-    "جيجاهرتز (ghz)": 1000000000,
-    "دورة لكل دقيقة (rpm)": 0.0166667,
-    "دورة لكل ثانية (cps)": 1,
-    "مليهرتز (mhz)": 0.001
-  },
-  "الشحنة الكهربائية (Charge)": {
-    "كولوم (c)": 1,
-    "أمبير-ساعة (ah)": 3600,
-    "ملي أمبير-ساعة (mah)": 3.6,
-    "فاراداي (F)": 96485,
-    "ستات كولوم (statC)": 3.33564e-10
-  },
-  "التيار الكهربائي (Current)": {
-    "أمبير (a)": 1,
-    "ملي أمبير (ma)": 0.001,
-    "كيلو أمبير (ka)": 1000,
-    "ميكرو أمبير (µa)": 0.000001,
-    "نانوأمبير (na)": 1e-9
-  },
-  "الجهد الكهربائي (Voltage)": {
-    "فولت (v)": 1,
-    "ملي فولت (mv)": 0.001,
-    "كيلوفولت (kv)": 1000,
-    "ميكروفولت (µv)": 0.000001,
-    "ميجافولت (mv)": 1000000
-  },
-  "المقاومة (Resistance)": {
-    "أوم (ohm)": 1,
-    "كيلوأوم (kohm)": 1000,
-    "ميجاأوم (mohm)": 1000000,
-    "ملي أوم (mΩ)": 0.001,
-    "ميكروأوم (µΩ)": 0.000001
-  },
-  "السعة الكهربائية (Capacitance)": {
-    "فاراد (f)": 1,
-    "ميكروفاراد (uf)": 0.000001,
-    "نانوفاراد (nf)": 1e-9,
-    "بيكوفاراد (pf)": 1e-12,
-    "ملي فاراد (mf)": 0.001,
-    "كيلوفاراد (kf)": 1000
-  },
-  
-};
-        setContent(`<label>الفئة</label>
-<select id="cv_c">${Object.keys(convDB).map(c=>`<option>${c}</option>`).join('')}</select>
+    title.innerText = ' محول شامل';
+    setContent(`<label>الفئة</label>
+<select id="cv_c">${Object.keys(CONV_DB).map(c=>`<option>${c}</option>`).join('')}</select>
 <label>القيمة</label>
 <input type="number" id="cv_v" value="1">
 
@@ -331,30 +93,62 @@ else if(toolId === 'capacitor_table') {
     <select id="cv_t"></select>
   </div>
 </div>`, () => {
-              const cat = document.getElementById('cv_c').value; const val = parseFloat(document.getElementById('cv_v').value); const from = document.getElementById('cv_f').value; const to = document.getElementById('cv_t').value;
-            if(isNaN(val)) { showToast('أدخل قيمة رقمية', 'warning'); return; }
-            let res;
-            if (cat === 'درجة الحرارة (Temperature)') {
-                let c;
-                if (from === 'c') c = val; else if (from === 'f') c = (val - 32) * 5 / 9; else if (from === 'k') c = val - 273.15; else if (from === 'r') c = (val - 491.67) * 5 / 9;
-                if (to === 'c') res = c; else if (to === 'f') res = c * 9 / 5 + 32; else if (to === 'k') res = c + 273.15; else if (to === 'r') res = c * 9 / 5 + 491.67;
-            } else { res = (val * convDB[cat][from]) / convDB[cat][to]; }
-            showFullRes('تحويل الوحدات', {'الفئة':cat,'القيمة':val+' '+from,'النتيجة   ':res.toFixed(4)+' '+to});
-        });
-        const updateConvUIDebounced = debounce(() => {
-            let cat = document.getElementById('cv_c').value;
-            let units = Object.keys(convDB[cat]);
-            document.getElementById('cv_f').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
-            document.getElementById('cv_t').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
-            clearResult();
-        }, 100);
-        document.getElementById('cv_c').onchange = updateConvUIDebounced;
-        updateConvUIDebounced();
-        document.getElementById('cv_f').onchange = () => clearResult();
-        document.getElementById('cv_t').onchange = () => clearResult();
-        document.getElementById('swapConvBtn').onclick = () => { let f=document.getElementById('cv_f'); let t=document.getElementById('cv_t'); let tmp=f.value; f.value=t.value; t.value=tmp; clearResult(); };
-    }
-
+        const cat = document.getElementById('cv_c').value;
+        const val = parseFloat(document.getElementById('cv_v').value);
+        const from = document.getElementById('cv_f').value;
+        const to = document.getElementById('cv_t').value;
+        if(isNaN(val)) { showToast('أدخل قيمة رقمية', 'warning'); return; }
+        let res;
+        if (cat === 'درجة الحرارة (Temperature)') {
+            // تعريف جميع وحدات الحرارة مع معاملات التحويل إلى سيلسيوس
+            const tempUnits = {
+                'سيلسيوس (t°C)': { toC: (x) => x, fromC: (x) => x },
+                'فهرنهايت (t°F)': { toC: (x) => (x - 32) * 5/9, fromC: (x) => x * 9/5 + 32 },
+                'كلفن (T°K)': { toC: (x) => x - 273.15, fromC: (x) => x + 273.15 },
+                'رانكين (T°R)': { toC: (x) => (x - 491.67) * 5/9, fromC: (x) => x * 9/5 + 491.67 },
+                'نيوتن (t°N)': { toC: (x) => x * 100/33, fromC: (x) => x * 33/100 },
+                'ريومور (t°Ré)': { toC: (x) => x * 5/4, fromC: (x) => x * 4/5 },
+                'دليسل (Delisle)': { toC: (x) => 100 - (x * 2/3), fromC: (x) => (100 - x) * 3/2 },
+                'رومر (t°Rø)': { toC: (x) => (x - 7.5) * 40/21, fromC: (x) => x * 21/40 + 7.5 }
+            };
+            if (!tempUnits[from] || !tempUnits[to]) {
+                showToast('وحدة حرارة غير معروفة', 'error');
+                return;
+            }
+            const celsius = tempUnits[from].toC(val);
+            res = tempUnits[to].fromC(celsius);
+        } else {
+            res = (val * CONV_DB[cat][from]) / CONV_DB[cat][to];
+        }
+        showFullRes('تحويل الوحدات', {'الفئة':cat,'القيمة':val+' '+from,'النتيجة   ':res.toFixed(4)+' '+to});
+    });
+    const updateConvUIDebounced = debounce(() => {
+        let cat = document.getElementById('cv_c').value;
+        let units;
+        if (cat === 'درجة الحرارة (Temperature)') {
+            units = [
+                'سيلسيوس (t°C)',
+                'فهرنهايت (t°F)',
+                'كلفن (T°K)',
+                'رانكين (T°R)',
+                'نيوتن (t°N)',
+                'ريومور (t°Ré)',
+                'دليسل (Delisle)',
+                'رومر (t°Rø)'
+            ];
+        } else {
+            units = Object.keys(CONV_DB[cat]);
+        }
+        document.getElementById('cv_f').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
+        document.getElementById('cv_t').innerHTML = units.map(u=>`<option>${u}</option>`).join('');
+        clearResult();
+    }, 100);
+    document.getElementById('cv_c').onchange = updateConvUIDebounced;
+    updateConvUIDebounced();
+    document.getElementById('cv_f').onchange = () => clearResult();
+    document.getElementById('cv_t').onchange = () => clearResult();
+    document.getElementById('swapConvBtn').onclick = () => { let f=document.getElementById('cv_f'); let t=document.getElementById('cv_t'); let tmp=f.value; f.value=t.value; t.value=tmp; clearResult(); };
+}
 
 else if (toolId === 'saved') {
     title.innerText = ' المحفوظات';
@@ -770,20 +564,6 @@ else if (toolId === 'room') {
         title.innerText = ' حساب أحمال الغرف';
         let activeMode = window._roomActiveMode || 'normal';
         
-        // دالة التقريب للحصان (نصف حصان)
-        const roundUpHP = (hp) => {
-            if (hp <= 0.5) return 0.5;
-            if (hp <= 0.75) return 0.75;
-            if (hp <= 1) return 1;
-            if (hp <= 1.5) return 1.5;
-            if (hp <= 2) return 2;
-            if (hp <= 2.5) return 2.5;
-            if (hp <= 3) return 3;
-            if (hp <= 4) return 4;
-            if (hp <= 5) return 5;
-            return Math.ceil(hp);
-        };
-        
         const calculateNormal = () => {
             const l = parseFloat(document.getElementById('r_l')?.value);
             const w = parseFloat(document.getElementById('r_w')?.value);
@@ -1046,111 +826,9 @@ else if (toolId === 'room') {
     else if (toolId === 'capillary') {
     title.innerText = ' حساب الكابلري (الأنبوب الشعري) ';
 
-    // ========== التأكد من وجود الدوال الأساسية مع تحسينات ==========
-    if (typeof getPressureFromTemp !== 'function') {
-        window.getPressureFromTemp = (refrigerant, tempC) => {
-            const data = refPTData?.[refrigerant];
-            if (!data) return NaN;
-            const { temps, pressures } = data;
-            if (tempC <= temps[0]) return pressures[0];
-            if (tempC >= temps[temps.length-1]) return pressures[temps.length-1];
-            // Cubic Spline interpolation (أدق من الخطي)
-            for (let i = 1; i < temps.length - 2; i++) {
-                if (tempC >= temps[i] && tempC <= temps[i+1]) {
-                    const t0 = temps[i-1], t1 = temps[i], t2 = temps[i+1], t3 = temps[i+2];
-                    const p0 = pressures[i-1], p1 = pressures[i], p2 = pressures[i+1], p3 = pressures[i+2];
-                    const mu = (tempC - t1) / (t2 - t1);
-                    const a0 = -0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3;
-                    const a1 = p0 - 2.5*p1 + 2*p2 - 0.5*p3;
-                    const a2 = -0.5*p0 + 0.5*p2;
-                    const a3 = p1;
-                    return a0*mu*mu*mu + a1*mu*mu + a2*mu + a3;
-                }
-            }
-            return pressures[pressures.length-1];
-        };
-    }
-
-    // جدول كثافة السائل والبخار لكل فريون (بيانات تقريبية محسنة)
-    if (typeof densityTable === 'undefined') {
-        window.densityTable = {
-            'R22': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1250, 1235, 1220, 1205, 1190, 1175, 1160, 1145, 1130, 1115] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [7.5, 9.2, 11.2, 13.5, 16.1, 19.0, 22.3, 26.0, 30.1, 34.6] }
-            },
-            'R410A': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1150, 1135, 1120, 1105, 1090, 1075, 1060, 1045, 1030, 1015] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [10.5, 12.8, 15.5, 18.6, 22.2, 26.3, 31.0, 36.2, 42.0, 48.5] }
-            },
-            'R134a': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1280, 1265, 1250, 1235, 1220, 1205, 1190, 1175, 1160, 1145] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [6.2, 7.8, 9.7, 12.0, 14.7, 17.8, 21.4, 25.5, 30.2, 35.6] }
-            },
-            'R404A': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1120, 1105, 1090, 1075, 1060, 1045, 1030, 1015, 1000, 985] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [11.0, 13.5, 16.4, 19.8, 23.7, 28.2, 33.3, 39.2, 45.9, 53.5] }
-            },
-            'R407C': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1190, 1175, 1160, 1145, 1130, 1115, 1100, 1085, 1070, 1055] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [8.2, 10.0, 12.2, 14.8, 17.9, 21.4, 25.5, 30.2, 35.6, 41.8] }
-            },
-            'R32': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [1020, 1005, 990, 975, 960, 945, 930, 915, 900, 885] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [12.0, 15.0, 18.6, 22.9, 27.9, 33.8, 40.6, 48.5, 57.7, 68.3] }
-            },
-            'R290': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [540, 530, 520, 510, 500, 490, 480, 470, 460, 450] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [4.5, 5.8, 7.4, 9.4, 11.8, 14.7, 18.2, 22.4, 27.4, 33.3] }
-            },
-            'R600a': {
-                liquid: { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [600, 590, 580, 570, 560, 550, 540, 530, 520, 510] },
-                vapor:  { temps: [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60], values: [2.2, 3.0, 4.0, 5.3, 6.9, 8.9, 11.4, 14.5, 18.3, 22.9] }
-            }
-        };
-    }
-
-    // دالة استخراج الكثافة بواسطة الجدول (سائل أو بخار)
-    if (typeof getDensityFromTemp !== 'function') {
-        window.getDensityFromTemp = (refrigerant, tempC, phase = 'liquid') => {
-            const table = densityTable[refrigerant]?.[phase];
-            if (!table) return (phase === 'liquid' ? 1000 : 5);
-            const { temps, values } = table;
-            if (tempC <= temps[0]) return values[0];
-            if (tempC >= temps[temps.length-1]) return values[temps.length-1];
-            for (let i = 0; i < temps.length-1; i++) {
-                if (tempC >= temps[i] && tempC <= temps[i+1]) {
-                    return values[i] + (tempC - temps[i]) * (values[i+1] - values[i]) / (temps[i+1] - temps[i]);
-                }
-            }
-            return values[values.length-1];
-        };
-    }
-
-    if (typeof showFullRes !== 'function') window.showFullRes = (title, obj) => { alert(title + "\n" + JSON.stringify(obj, null, 2)); };
-    if (typeof showToast !== 'function') window.showToast = (msg, type) => alert(msg);
-    if (typeof clearResult !== 'function') window.clearResult = () => {};
-
-    // بيانات الأقطار المتاحة (بوصة)
-    const capillarySizes = [
-        { inch:0.026, maxFlow:0.002 }, { inch:0.028, maxFlow:0.003 }, { inch:0.031, maxFlow:0.005 },
-        { inch:0.036, maxFlow:0.008 }, { inch:0.040, maxFlow:0.010 }, { inch:0.042, maxFlow:0.012 },
-        { inch:0.050, maxFlow:0.018 }, { inch:0.055, maxFlow:0.022 }, { inch:0.064, maxFlow:0.028 },
-        { inch:0.070, maxFlow:0.035 }
-    ];
-
     // ========== النموذج المتقدم (محسّن) ==========
     function advancedCapillary(capacityWatts, refrigerant, evapTemp, condTemp, subcooling, superheat, liquidLineLen, segments = 30) {
-        const propsStat = {
-            'R22':   { viscL:0.00023, viscG:0.000013, CpL: 1200, CpG: 800, h_fg: 200000 },
-            'R410A': { viscL:0.00022, viscG:0.000014, CpL: 1500, CpG: 900, h_fg: 260000 },
-            'R134a': { viscL:0.00028, viscG:0.000012, CpL: 1400, CpG: 750, h_fg: 217000 },
-            'R404A': { viscL:0.00024, viscG:0.000013, CpL: 1300, CpG: 800, h_fg: 200000 },
-            'R407C': { viscL:0.00025, viscG:0.000013, CpL: 1450, CpG: 850, h_fg: 250000 },
-            'R32':   { viscL:0.00020, viscG:0.000011, CpL: 1700, CpG: 1000, h_fg: 320000 },
-            'R290':  { viscL:0.00012, viscG:0.000008, CpL: 2300, CpG: 1500, h_fg: 425000 },
-            'R600a': { viscL:0.00018, viscG:0.000009, CpL: 2200, CpG: 1400, h_fg: 360000 }
-        };
-        const props = propsStat[refrigerant];
+        const props = REFRIGERANT_PROPS[refrigerant];
         if (!props) return null;
 
         // فرق الضغط الكلي مع خسائر خط السائل
@@ -1256,18 +934,8 @@ else if (toolId === 'room') {
     }
 
     // ========== الوضع السريع (محسّن قليلاً) ==========
-    const refrigerantProps = {
-        'R22':   { density:1190, viscosity:0.00023, h_liquid:200, h_vapor:400 },
-        'R410A': { density:1090, viscosity:0.00022, h_liquid:220, h_vapor:480 },
-        'R134a': { density:1207, viscosity:0.00028, h_liquid:180, h_vapor:397 },
-        'R404A': { density:1040, viscosity:0.00024, h_liquid:190, h_vapor:390 },
-        'R407C': { density:1130, viscosity:0.00025, h_liquid:210, h_vapor:460 },
-        'R32':   { density:960,  viscosity:0.00020, h_liquid:240, h_vapor:560 },
-        'R290':  { density:500,  viscosity:0.00012, h_liquid:280, h_vapor:705 },
-        'R600a': { density:550,  viscosity:0.00018, h_liquid:260, h_vapor:620 }
-    };
     function quickMode(capacityWatts, refrigerant, evapTemp, condTemp, subcooling, superheat, liquidLineLen) {
-        const props = refrigerantProps[refrigerant];
+        const props = REFRIGERANT_PROPS_QUICK[refrigerant];
         if (!props) return null;
         let deltaP_bar = getPressureFromTemp(refrigerant, condTemp) - getPressureFromTemp(refrigerant, evapTemp);
         deltaP_bar = Math.max(deltaP_bar - (0.5 + liquidLineLen*0.02), 0.8);
@@ -1278,9 +946,9 @@ else if (toolId === 'room') {
         if (massFlow <= 0) massFlow = 0.003;
 
         // اختيار القطر بناءً على السرعة (ليس maxFlow الثابت)
-        let bestDiameter = capillarySizes[4].inch; // 0.040 افتراضي
+        let bestDiameter = CAPILLARY_SIZES[4].inch; // 0.040 افتراضي
         let bestVelocity = Infinity;
-        for (let s of capillarySizes) {
+        for (let s of CAPILLARY_SIZES) {
             const d_m = s.inch * 0.0254;
             const area = Math.PI * d_m * d_m / 4;
             const vel = massFlow / (props.density * area);
@@ -1381,12 +1049,7 @@ else if (toolId === 'room') {
     };
 
     // ========== بناء الواجهة وربط الزر ==========
-    let refrigerantOptions = '';
-    if (typeof refPTData !== 'undefined' && refPTData) {
-        refrigerantOptions = Object.keys(refPTData).map(r => `<option value="${r}">${r}</option>`).join('');
-    } else {
-        refrigerantOptions = Object.keys(refrigerantProps).map(r => `<option value="${r}">${r}</option>`).join('');
-    }
+    let refrigerantOptions = Object.keys(refPTData).map(r => `<option value="${r}">${r}</option>`).join('');
     
     setContent(`
 <div class="grid gap-3" dir="rtl" style="display: flex; flex-direction: column; gap: 1rem;">
@@ -3123,9 +2786,7 @@ else if (toolId === 'air_velocity') {
     };
     
     // دوال مساعدة
-    function round2(v) { return Math.round(v * 100) / 100; }
-    function round0(v) { return Math.round(v); }
-    function round1(v) { return Math.round(v * 10) / 10; }
+
     
     // تحويل الوحدات
     function toCFM(value, unit) {
@@ -4281,7 +3942,7 @@ else if (toolId === 'energy') {
     ];
     
     // دالة تقريب
-    function round2(v) { return Math.round(v * 100) / 100; }
+
     
     // بناء قائمة الأجهزة
     let applianceOptions = '<option value="">-- اختر جهازاً --</option>';
@@ -4868,7 +4529,7 @@ else if (toolId === 'wire') {
     title.innerText = ' حساب المكثف ';
     
     // دوال مساعدة
-    function round2(v) { return Math.round(v * 100) / 100; }
+
     function round1(v) { return Math.round(v * 10) / 10; }
     function round0(v) { return Math.round(v); }
     
@@ -5071,28 +4732,7 @@ else if (toolId === 'capacitors') {
     let seriesLen = 2;
     let branches = 2;
     
-    let seriesCache = {}, parallelCache = {};
-
-    const seriesCalc = (arr) => {
-        let key = arr.join(',');
-        if (seriesCache[key]) return seriesCache[key];
-        let res = 1 / arr.reduce((a, b) => a + 1 / b, 0);
-        seriesCache[key] = res;
-        return res;
-    };
-    
-    const parallelCalc = (arr) => {
-        let key = arr.join(',');
-        if (parallelCache[key]) return parallelCache[key];
-        let res = arr.reduce((a, b) => a + b, 0);
-        parallelCache[key] = res;
-        return res;
-    };
-    
-    const clearResults = () => {
-        const resultDisplay = document.getElementById('resultDisplay');
-        if (resultDisplay) resultDisplay.classList.add('hidden');
-    };
+    const clearResults = clearResult;
     
     const calcMixed = () => {
         const order = document.getElementById('mixOrder').value;
@@ -5109,14 +4749,14 @@ else if (toolId === 'capacitors') {
                 }
             }
             if (vals.length === 0) continue;
-            let eq = (order === 'seriesFirst') ? seriesCalc(vals) : parallelCalc(vals);
+            let eq = (order === 'seriesFirst') ? seriesCalc(vals, 'capacitor') : parallelCalc(vals, 'capacitor');
             branchEqs.push(eq);
         }
         if (branchEqs.length === 0) {
             showToast('أدخل قيم صحيحة', 'warning');
             return;
         }
-        let total = (order === 'seriesFirst') ? parallelCalc(branchEqs) : seriesCalc(branchEqs);
+        let total = (order === 'seriesFirst') ? parallelCalc(branchEqs, 'capacitor') : seriesCalc(branchEqs, 'capacitor');
         showFullRes('السعة المكافئة (مختلط)', {
             'ترتيب الحساب': order === 'seriesFirst' ? 'توالي ثم توازي' : 'توازي ثم توالي',
             'عدد الفروع': branches,
@@ -5138,18 +4778,12 @@ else if (toolId === 'capacitors') {
             }
             vals.push(v);
         }
-        let res = (conn === 'parallel') ? parallelCalc(vals) : seriesCalc(vals);
+        let res = (conn === 'parallel') ? parallelCalc(vals, 'capacitor') : seriesCalc(vals, 'capacitor');
         showFullRes('نتيجة التوصيل', {
             'نوع التوصيل': conn === 'parallel' ? 'توازي' : 'توالي',
             'القيم': vals.join(' , '),
             'السعة المكافئة': res.toFixed(5) + ' µF'
         });
-    };
-    
-    const genSimpleInputs = (count, containerId, prefix) => {
-        let html = '';
-        for (let i = 1; i <= count; i++) html += `<input type="number" step="any" id="${prefix}${i}" placeholder="C${i} µF" class="mb-2">`;
-        document.getElementById(containerId).innerHTML = `<div class="grid grid-cols-2 gap-2">${html}</div>`;
     };
     
     // دالة منفصلة لتوليد الجدول المختلط مع عناوين صحيحة
@@ -5296,7 +4930,7 @@ else if (toolId === 'capacitors') {
                     let newNum = parseInt(val);
                     if (!isNaN(newNum) && newNum >= 1 && newNum <= 10) {
                         num = newNum;
-                        genSimpleInputs(num, 'capsInputs', 'cap_');
+                        genSimpleInputs(num, 'capsInputs', 'cap_', 'µF');
                         clearResults();
                     }
                 };
@@ -5305,25 +4939,25 @@ else if (toolId === 'capacitors') {
                     if (val === '') {
                         num = 1;
                         numCapsInput.value = 1;
-                        genSimpleInputs(1, 'capsInputs', 'cap_');
+                        genSimpleInputs(1, 'capsInputs', 'cap_', 'µF');
                         clearResults();
                     } else {
                         let newNum = parseInt(val);
                         if (isNaN(newNum) || newNum < 1) {
                             num = 1;
                             numCapsInput.value = 1;
-                            genSimpleInputs(1, 'capsInputs', 'cap_');
+                            genSimpleInputs(1, 'capsInputs', 'cap_', 'µF');
                             clearResults();
                         } else if (newNum > 10) {
                             num = 10;
                             numCapsInput.value = 10;
-                            genSimpleInputs(10, 'capsInputs', 'cap_');
+                            genSimpleInputs(10, 'capsInputs', 'cap_', 'µF');
                             clearResults();
                         }
                     }
                 };
             }
-            genSimpleInputs(num, 'capsInputs', 'cap_');
+            genSimpleInputs(num, 'capsInputs', 'cap_', 'µF');
             calcBtn.onclick = () => calcSimple();
             calcBtn.style.display = 'flex';
         }
@@ -5349,31 +4983,9 @@ else if (toolId === 'capacitors') {
     let seriesLen = 2;
     let branches = 2;
     
-    let seriesCache = {}, parallelCache = {};
 
-    // قوانين المقاومات:
-    // التوالي: مجموع المقاومات
-    const seriesCalc = (arr) => {
-        let key = arr.join(',');
-        if (seriesCache[key]) return seriesCache[key];
-        let res = arr.reduce((a, b) => a + b, 0);
-        seriesCache[key] = res;
-        return res;
-    };
-    
-    // التوازي: مقلوب مجموع المقلوبات
-    const parallelCalc = (arr) => {
-        let key = arr.join(',');
-        if (parallelCache[key]) return parallelCache[key];
-        let res = 1 / arr.reduce((a, b) => a + 1 / b, 0);
-        parallelCache[key] = res;
-        return res;
-    };
-    
-    const clearResults = () => {
-        const resultDisplay = document.getElementById('resultDisplay');
-        if (resultDisplay) resultDisplay.classList.add('hidden');
-    };
+
+    const clearResults = clearResult;
     
     const calcMixed = () => {
         const order = document.getElementById('mixOrder').value;
@@ -5390,14 +5002,14 @@ else if (toolId === 'capacitors') {
                 }
             }
             if (vals.length === 0) continue;
-            let eq = (order === 'seriesFirst') ? seriesCalc(vals) : parallelCalc(vals);
+            let eq = (order === 'seriesFirst') ? seriesCalc(vals, 'resistor') : parallelCalc(vals, 'resistor');
             branchEqs.push(eq);
         }
         if (branchEqs.length === 0) {
             showToast('أدخل قيم صحيحة', 'warning');
             return;
         }
-        let total = (order === 'seriesFirst') ? parallelCalc(branchEqs) : seriesCalc(branchEqs);
+        let total = (order === 'seriesFirst') ? parallelCalc(branchEqs, 'resistor') : seriesCalc(branchEqs, 'resistor');
         showFullRes('المقاومة المكافئة (مختلط)', {
             'ترتيب الحساب': order === 'seriesFirst' ? 'توالي ثم توازي' : 'توازي ثم توالي',
             'عدد الفروع': branches,
@@ -5419,18 +5031,12 @@ else if (toolId === 'capacitors') {
             }
             vals.push(v);
         }
-        let res = (conn === 'parallel') ? parallelCalc(vals) : seriesCalc(vals);
+        let res = (conn === 'parallel') ? parallelCalc(vals, 'resistor') : seriesCalc(vals, 'resistor');
         showFullRes('نتيجة التوصيل', {
             'نوع التوصيل': conn === 'parallel' ? 'توازي' : 'توالي',
             'القيم': vals.join(' , '),
             'المقاومة المكافئة': res.toFixed(5) + ' Ω'
         });
-    };
-    
-    const genSimpleInputs = (count, containerId, prefix) => {
-        let html = '';
-        for (let i = 1; i <= count; i++) html += `<input type="number" step="any" id="${prefix}${i}" placeholder="R${i} Ω" class="mb-2">`;
-        document.getElementById(containerId).innerHTML = `<div class="grid grid-cols-2 gap-2">${html}</div>`;
     };
     
     const updateMixedTable = () => {
@@ -5573,7 +5179,7 @@ else if (toolId === 'capacitors') {
                     let newNum = parseInt(val);
                     if (!isNaN(newNum) && newNum >= 1 && newNum <= 10) {
                         num = newNum;
-                        genSimpleInputs(num, 'resInputs', 'res_');
+                        genSimpleInputs(num, 'resInputs', 'res_', 'Ω');
                         clearResults();
                     }
                 };
@@ -5582,25 +5188,25 @@ else if (toolId === 'capacitors') {
                     if (val === '') {
                         num = 1;
                         numResInput.value = 1;
-                        genSimpleInputs(1, 'resInputs', 'res_');
+                        genSimpleInputs(1, 'resInputs', 'res_', 'Ω');
                         clearResults();
                     } else {
                         let newNum = parseInt(val);
                         if (isNaN(newNum) || newNum < 1) {
                             num = 1;
                             numResInput.value = 1;
-                            genSimpleInputs(1, 'resInputs', 'res_');
+                            genSimpleInputs(1, 'resInputs', 'res_', 'Ω');
                             clearResults();
                         } else if (newNum > 10) {
                             num = 10;
                             numResInput.value = 10;
-                            genSimpleInputs(10, 'resInputs', 'res_');
+                            genSimpleInputs(10, 'resInputs', 'res_', 'Ω');
                             clearResults();
                         }
                     }
                 };
             }
-            genSimpleInputs(num, 'resInputs', 'res_');
+            genSimpleInputs(num, 'resInputs', 'res_', 'Ω');
             calcBtn.onclick = () => calcSimple();
             calcBtn.style.display = 'flex';
         }
