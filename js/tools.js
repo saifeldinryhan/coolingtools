@@ -441,7 +441,6 @@ else if (toolId === 'comp_search') {
             
             let formatted = formatGeminiResponse(text, `بحث ضاغط: ${modelName}`);
             return formatted;
-
       }        
             
         
@@ -1704,13 +1703,29 @@ else if (toolId === 'room') {
         return r.toFixed(2) + ' Ω';
     }
     
-    // إضافة دالة Steinhart-Hart
+    // دالة Steinhart-Hart (حرارة من مقاومة)
     function steinhartHart(R, A, B, C) {
         const lnR = Math.log(R);
         const invT = A + B * lnR + C * Math.pow(lnR, 3);
         return (1 / invT) - 273.15;
     }
     
+    // دالة عكسية لـ Steinhart-Hart (مقاومة من حرارة) باستخدام نيوتن-رافسون
+    function steinhartHartInverse(T, A, B, C) {
+        const target = 1 / (T + 273.15);
+        // تخمين أولي: قيمة مقاومة نموذجية (10kΩ)
+        let lnR = Math.log(10000);
+        for (let i = 0; i < 100; i++) {
+            const f = A + B * lnR + C * Math.pow(lnR, 3) - target;
+            const df = B + 3 * C * Math.pow(lnR, 2);
+            const delta = f / df;
+            lnR -= delta;
+            if (Math.abs(delta) < 1e-12) break;
+        }
+        return Math.exp(lnR);
+    }
+    
+    // معادلة بيتا (حرارة من مقاومة)
     function betaEquation(R, R0, B, T0K) {
         const invT = 1 / T0K + (1 / B) * Math.log(R / R0);
         return (1 / invT) - 273.15;
@@ -1738,7 +1753,6 @@ else if (toolId === 'room') {
         const isCustom = (type === 'custom');
         const equation = document.getElementById('ntc_equation').value;
         
-        // إخفاء كل أقسام المخصص أولا
         const customBetaDiv = document.getElementById('ntc_custom_beta');
         const customSteinhartDiv = document.getElementById('ntc_custom_steinhart');
         if (customBetaDiv) customBetaDiv.style.display = 'none';
@@ -1754,21 +1768,19 @@ else if (toolId === 'room') {
         clearResult();
     };
     
-    // إضافة مستمع لتغيير المعادلة لتحديث الحقول المخصصة
     ToolHelpers.updateCustomFieldsOnEquation = function() {
         ToolHelpers.ntcToggleCustom();
     };
     
     ToolHelpers.computeNtc = function() {
         const type = document.getElementById('ntc_type').value;
-        const equation = document.getElementById('ntc_equation').value; // 'beta' or 'steinhart'
+        const equation = document.getElementById('ntc_equation').value;
         let R0, B, T0 = 25;
-        let A, B_sh, C; // for Steinhart-Hart
+        let A, B_sh, C;
         let useSteinhart = (equation === 'steinhart');
         
         if (type === 'custom') {
             if (useSteinhart) {
-                // قراءة معاملات Steinhart-Hart من الحقول المخصصة
                 A = parseFloat(document.getElementById('ntc_a').value);
                 B_sh = parseFloat(document.getElementById('ntc_b_sh').value);
                 C = parseFloat(document.getElementById('ntc_c').value);
@@ -1776,17 +1788,16 @@ else if (toolId === 'room') {
                     showToast('معاملات Steinhart-Hart غير صحيحة', 'warning');
                     return;
                 }
-                // نحتاج أيضاً R0 و T0 لاستخدامهما في الاتجاه العكسي (مقاومة من حرارة) حيث نستخدم Beta احتياطياً
+                // نقرأ R0 و T0 للاستخدام في التخمين الأولي أو في عرض القيم
                 T0 = parseFloat(document.getElementById('ntc_t0').value);
                 R0 = parseFloat(document.getElementById('ntc_r0').value);
                 if (!isFinite(T0) || !isFinite(R0) || R0 <= 0) {
                     showToast('القيم المرجعية (R0, T0) غير صحيحة', 'warning');
                     return;
                 }
-                B = parseFloat(document.getElementById('ntc_b').value); // قد لا يستخدم في Steinhart ولكن نحتاجه للاتجاه العكسي
-                if (!isFinite(B)) B = 3950; // قيمة افتراضية
+                B = parseFloat(document.getElementById('ntc_b').value); // قد لا يستخدم
+                if (!isFinite(B)) B = 3950;
             } else {
-                // قراءة معاملات Beta
                 T0 = parseFloat(document.getElementById('ntc_t0').value);
                 R0 = parseFloat(document.getElementById('ntc_r0').value);
                 B = parseFloat(document.getElementById('ntc_b').value);
@@ -1794,7 +1805,6 @@ else if (toolId === 'room') {
                     showToast('القيم المخصصة لمعادلة Beta غير صحيحة', 'warning');
                     return;
                 }
-                // تعيين معاملات Steinhart-Hart افتراضية (لن تستخدم)
                 A = 1.129241e-3; B_sh = 2.341077e-4; C = 8.767411e-8;
             }
         } else {
@@ -1811,7 +1821,7 @@ else if (toolId === 'room') {
             } else {
                 A = 1.0e-3; B_sh = 2.5e-4; C = 1.0e-7;
             }
-            T0 = 25; // القيمة المرجعية ثابتة للأنواع المدمجة
+            T0 = 25;
         }
         
         const T0K = T0 + 273.15;
@@ -1869,10 +1879,15 @@ else if (toolId === 'room') {
             }
             
             let r;
-            // استخدام معادلة Beta للاتجاه العكسي (أسهل وأسرع)
-            r = R0 * Math.exp(B * (1 / (t + 273.15) - 1 / T0K));
+            if (useSteinhart) {
+                // استخدام المعكوس لـ Steinhart-Hart
+                r = steinhartHartInverse(t, A, B_sh, C);
+            } else {
+                // استخدام بيتا
+                r = R0 * Math.exp(B * (1 / (t + 273.15) - 1 / T0K));
+            }
             
-            if (!isFinite(r) || isNaN(r)) {
+            if (!isFinite(r) || isNaN(r) || r <= 0) {
                 showToast('نتيجة غير منطقية (تأكد من المدخلات)', 'error');
                 return;
             }
@@ -1881,13 +1896,14 @@ else if (toolId === 'room') {
                 'نوع الحساس': type === 'custom' ? 'مخصص' : ntcTypes[type].name,
                 'درجة الحرارة': t.toFixed(2) + ' °C',
                 'المقاومة': formatResistance(r),
-                'المعادلة': 'Beta (لحساب المقاومة من الحرارة)'
+                'المعادلة': useSteinhart ? 'Steinhart-Hart (دقة عالية)' : 'Beta (لحساب المقاومة من الحرارة)'
             };
         }
         
         showFullRes('نتيجة الحساب', result);
     };
     
+    // ... (باقي الكود الخاص بإنشاء واجهة المستخدم كما هو، مع التأكد من وجود الحقول المطلوبة)
     const equationOptions = `
         <label>نوع المعادلة</label>
         <select id="ntc_equation">
@@ -1959,10 +1975,6 @@ else if (toolId === 'room') {
     // الإعداد الأولي
     setTimeout(() => { 
         ToolHelpers.ntcToggleCustom();
-        // إضافة حقل R0 المخفي لاستخدامه في كلا القسمين (لضمان وجوده)
-        if (!document.getElementById('ntc_r0')) {
-            // في حالة عدم وجوده (لن يحدث)، لكن نضمن وجوده
-        }
     }, 50);
 }
     
