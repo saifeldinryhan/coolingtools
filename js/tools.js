@@ -485,7 +485,7 @@ else if (toolId === 'comp_search') {
         setContent(`
             <div class="instruction-box p-3 text-center">
                 <i class="fas fa-key text-2xl text-orange-500 mb-2"></i>
-                <p>🔑 مطلوب مفتاح Gemini API من الإعدادات الرئيسية</p>
+                <p> مطلوب مفتاح Gemini API من الإعدادات الرئيسية</p>
                 <button id="goToSettingsFromAi" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg">⚙️ انتقل إلى الإعدادات</button>
             </div>
         `, null);
@@ -559,6 +559,267 @@ else if (toolId === 'comp_search') {
 }
 
 //ادوات التبريد 
+
+// ================= أداة البحث عن رموز الأعطال (Error Codes) =================
+// ================= أداة البحث عن رموز الأعطال (Error Codes) =================
+else if (toolId === 'error_search') {
+    title.innerText = ' البحث عن رموز الأعطال';
+
+    // التحقق من وجود بيانات الرموز
+    if (typeof errorCodes === 'undefined') {
+        setContent(`
+            <div class="instruction-box p-3 text-center">
+                <i class="fas fa-exclamation-triangle text-2xl text-red-500 mb-2"></i>
+                <p>بيانات رموز الأعطال غير متوفرة. تأكد من تحميل ملف <strong>errorCodes.js</strong>.</p>
+                <button onclick="location.reload()" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg">إعادة تحميل الصفحة</button>
+            </div>
+        `, null);
+        calcBtn.style.display = 'none';
+        return;
+    }
+
+    // ---------- دوال مساعدة لاستخراج البيانات ----------
+    function getAllErrors() {
+        const all = [];
+        for (const company in errorCodes) {
+            for (const device in errorCodes[company]) {
+                for (const system in errorCodes[company][device]) {
+                    const list = errorCodes[company][device][system];
+                    if (Array.isArray(list)) {
+                        list.forEach(item => {
+                            all.push({
+                                company,
+                                device,
+                                system,
+                                code: item.code,
+                                meaning: item.meaning,
+                                causes: item.causes,
+                                treatment: item.treatment
+                            });
+                        });
+                    }
+                }
+            }
+        }
+        return all;
+    }
+
+    function getCompanies() {
+    const comps = new Set();
+    for (const c in errorCodes) comps.add(c);
+    const all = Array.from(comps);
+    // إذا كانت "عام" موجودة، ننقلها إلى البداية
+    if (all.includes('عام')) {
+        const idx = all.indexOf('عام');
+        all.splice(idx, 1);
+        all.unshift('عام');
+    }
+    return all;
+}
+
+    function getDevices() {
+        return ['تكييف', 'ثلاجة'];
+    }
+
+    function getSystems() {
+        return ['الكل', 'عادي', 'إنفرتر'];
+    }
+
+    // ---------- بناء واجهة المستخدم ----------
+    const allErrors = getAllErrors();
+    const companies = getCompanies();
+    const devices = getDevices();
+    const systems = getSystems();
+
+    // الحالة الافتراضية للفلتر
+    let filterCompany = companies[0] || '';
+    let filterDevice = devices[0] || '';
+    let filterSystem = 'الكل';
+    let searchText = '';
+
+    // دالة تصفية البيانات
+    function filterErrors() {
+        return allErrors.filter(err => {
+            let match = true;
+            if (filterCompany && err.company !== filterCompany) match = false;
+            if (filterDevice && err.device !== filterDevice) match = false;
+            if (filterSystem !== 'الكل' && err.system !== filterSystem) match = false;
+            if (searchText.trim() !== '') {
+                const s = searchText.trim().toLowerCase();
+                const inCode = err.code.toLowerCase().includes(s);
+                const inMeaning = err.meaning.toLowerCase().includes(s);
+                if (!inCode && !inMeaning) match = false;
+            }
+            return match;
+        });
+    }
+
+    // دالة عرض النتائج في الجدول
+    function renderResults() {
+        const filtered = filterErrors();
+        const container = document.getElementById('errorResultsContainer');
+        if (!container) return;
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<div class="text-center p-4 text-gray-500">لا توجد رموز تطابق الفلاتر المحددة</div>`;
+            return;
+        }
+
+        let html = `
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="w-full text-sm text-right">
+                    <thead class="bg-blue-50 text-gray-700 border-b">
+                        <tr>
+                            <th class="p-2 font-semibold">الرمز</th>
+                            <th class="p-2 font-semibold">المعنى</th>
+                            <th class="p-2 font-semibold">الشركة</th>
+                            <th class="p-2 font-semibold">الجهاز</th>
+                            <th class="p-2 font-semibold">النظام</th>
+                            <th class="p-2 font-semibold">التفاصيل</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        filtered.forEach(err => {
+            html += `
+                <tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="showErrorDetails('${err.code}', '${err.company}', '${err.device}', '${err.system}')">
+                    <td class="p-2 font-bold text-blue-600">${err.code}</td>
+                    <td class="p-2">${err.meaning}</td>
+                    <td class="p-2">${err.company}</td>
+                    <td class="p-2">${err.device}</td>
+                    <td class="p-2">${err.system}</td>
+                    <td class="p-2 text-blue-500"><i class="fas fa-chevron-left"></i></td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    }
+
+    // دالة عرض تفاصيل رمز معين (تُستدعى عند النقر على صف)
+    window.showErrorDetails = function(code, company, device, system) {
+        // البحث عن الرمز في البيانات الكاملة
+        const err = allErrors.find(e => e.code === code && e.company === company && e.device === device && e.system === system);
+        if (!err) {
+            showToast('الرمز غير موجود', 'error');
+            return;
+        }
+
+        const resultObj = {
+            'الجهاز': err.device === 'تكييف' ? ' تكييف' : ' ثلاجة',
+            'الشركة': err.company,
+            'النظام': err.system === 'عادي' ? 'عادي' : 'إنفرتر',
+            'الرمز': err.code,
+            'المعنى': err.meaning,
+            'الأسباب المحتملة': err.causes,
+            'العلاج والإصلاح': err.treatment
+        };
+
+        showFullRes(` تفاصيل رمز العطل ${err.code}`, resultObj);
+    };
+
+    // دالة بناء الواجهة
+    function buildUI() {
+        const companyOptions = companies.map(c => `<option value="${c}" ${c === filterCompany ? 'selected' : ''}>${c}</option>`).join('');
+        const deviceOptions = devices.map(d => `<option value="${d}" ${d === filterDevice ? 'selected' : ''}>${d}</option>`).join('');
+        const systemOptions = systems.map(s => `<option value="${s}" ${s === filterSystem ? 'selected' : ''}>${s}</option>`).join('');
+
+        const html = `
+            <div class="space-y-4">
+                <!-- شريط الفلاتر -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1"> الشركة</label>
+                        <select id="filterCompany" class="w-full">${companyOptions}</select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1"> الجهاز</label>
+                        <select id="filterDevice" class="w-full">${deviceOptions}</select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1"> النظام</label>
+                        <select id="filterSystem" class="w-full">${systemOptions}</select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1"> بحث سريع</label>
+                        <input type="text" id="searchInput" placeholder="E0" class="w-full p-2 border text-center rounded-lg" value="${searchText}">
+                    </div>
+                </div>
+
+                <!-- أزرار إضافية -->
+                <div class="flex gap-2 flex-wrap">
+                    <button id="applyFiltersBtn" class="primary-btn px-4 py-2">تطبيق الفلاتر</button>
+                    <button id="resetFiltersBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg"> إعادة ضبط</button>
+                    <span class="text-sm text-gray-500 self-center mr-2" id="resultCount">0 رمز</span>
+                </div>
+
+                <!-- منطقة عرض النتائج -->
+                <div id="errorResultsContainer" class="mt-2 max-h-[500px] overflow-y-auto"></div>
+
+                <div class="instruction-box bg-blue-50 p-3 rounded-lg text-sm">
+                    انقر على أي صف لعرض التفاصيل الكاملة (الأسباب والعلاج)
+                </div>
+            </div>
+        `;
+
+        setContent(html, null);
+        calcBtn.style.display = 'none';
+
+        // ربط الأحداث بعد إنشاء DOM
+        setTimeout(() => {
+            const companySel = document.getElementById('filterCompany');
+            const deviceSel = document.getElementById('filterDevice');
+            const systemSel = document.getElementById('filterSystem');
+            const searchInp = document.getElementById('searchInput');
+            const applyBtn = document.getElementById('applyFiltersBtn');
+            const resetBtn = document.getElementById('resetFiltersBtn');
+            const countSpan = document.getElementById('resultCount');
+
+            // دالة تحديث الفلاتر وعرض النتائج
+            function applyFilters() {
+                filterCompany = companySel ? companySel.value : filterCompany;
+                filterDevice = deviceSel ? deviceSel.value : filterDevice;
+                filterSystem = systemSel ? systemSel.value : filterSystem;
+                searchText = searchInp ? searchInp.value : searchText;
+
+                renderResults();
+                const filtered = filterErrors();
+                if (countSpan) countSpan.textContent = `${filtered.length} رمز`;
+            }
+
+            // ربط الأحداث
+            if (applyBtn) applyBtn.onclick = applyFilters;
+            if (resetBtn) {
+                resetBtn.onclick = () => {
+                    if (companySel) companySel.value = companies[0] || '';
+                    if (deviceSel) deviceSel.value = devices[0] || '';
+                    if (systemSel) systemSel.value = 'الكل';
+                    if (searchInp) searchInp.value = '';
+                    filterCompany = companies[0] || '';
+                    filterDevice = devices[0] || '';
+                    filterSystem = 'الكل';
+                    searchText = '';
+                    applyFilters();
+                };
+            }
+
+            // تطبيق الفلاتر عند تغيير القوائم أو البحث (مع debounce)
+            const debounceApply = debounce(applyFilters, 300);
+            if (companySel) companySel.onchange = debounceApply;
+            if (deviceSel) deviceSel.onchange = debounceApply;
+            if (systemSel) systemSel.onchange = debounceApply;
+            if (searchInp) searchInp.oninput = debounceApply;
+
+            // عرض النتائج الأولية
+            applyFilters();
+
+        }, 20);
+    }
+
+    buildUI();
+}
 else if (toolId === 'room') {
         title.innerText = ' حساب أحمال الغرف';
         let activeMode = window._roomActiveMode || 'normal';
