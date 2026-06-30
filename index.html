@@ -81,6 +81,7 @@
     </div>
     <div id="toolsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
        <!-- 🧊 أولاً: أدوات التشخيص (الأهم للاستخدام اليومي) -->
+<div class="tool-btn" data-cat="hvac" onclick="openTool('error_search')"><i class="fas fa-triangle-exclamation"></i><span>أكواد أعطال </span></div>
 <div class="tool-btn" data-cat="hvac" onclick="openTool('pressure_diagnosis')"><i class="fas fa-stethoscope"></i><span>تشخيص الضغوط</span></div>
 <div class="tool-btn" data-cat="hvac" onclick="openTool('heat')"><i class="fas fa-fire-alt"></i><span>Superheat/Subcool</span></div>
 <div class="tool-btn" data-cat="hvac" onclick="openTool('ptcalc')"><i class="fas fa-chart-line"></i><span>حاسبة P-T</span></div>
@@ -134,6 +135,7 @@
 <footer class="footer "><div class="flex flex-wrap justify-center gap-6 mb-8"><a href="https://wa.me/201012655082" class="text-cyan-400 hover:text-white transition " target="_blank"><i class="fab fa-whatsapp"></i> واتساب</a><a href="mailto:syfaldynmhsn3@gmail.com" class="text-cyan-400  hover:text-white transition"><i class="far fa-envelope"></i> البريد</a><a href="https://www.facebook.com/share/1AWXfrv6Br/" class="text-cyan-400 hover:text-white transition" target="_blank"><i class="fab fa-facebook"></i> Facebook</a></div><p class="text-xs opacity-90"> م/ سيف الدين محسن ريحان  &copy; 2026</p></footer>
 <script src="js/basic.js"></script>
 <script src="js/tools.js"></script>
+<script src="js/errorCodes.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/service-worker.js').then(reg => {
