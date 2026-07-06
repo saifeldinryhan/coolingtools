@@ -1,5 +1,4 @@
 
-
 // === ثوابت التخزين المؤقت (من service-worker.js) ===
 const CACHE_VERSION = "cooling-tools-v1.22";
 const CORE_FILES = [
@@ -8,6 +7,8 @@ const CORE_FILES = [
   "/manifest.json",
   "/favicon.png",
   "/js/basic.js",
+"/js/tools.js",
+"/js/errorCodes.js",
   "/css/basic.css",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
