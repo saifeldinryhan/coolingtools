@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a2537"/>
+      <stop offset="100%" stop-color="#04121a"/>
+    </linearGradient>
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- الخلفية الداكنة الدائرية/السداسية -->
+  <polygon points="100,10 180,50 180,150 100,190 20,150 20,50" fill="url(#bgGrad)" stroke="#0ea5e9" stroke-width="4"/>
+  
+  <!-- الإطار الخارجي الهندسي السداسي -->
+  <polygon points="100,22 168,58 168,142 100,178 32,142 32,58" fill="none" stroke="url(#hexGrad)" stroke-width="8" stroke-linejoin="round"/>
+  
+  <!-- تفاصيل تبريد وتقنية داخلية -->
+  <circle cx="100" cy="100" r="45" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 4" opacity="0.6"/>
+
+  <!-- مروحة / توربين التبريد المركزي (3 شفرات دقيقة) -->
+  <g transform="translate(100,100)">
+    <!-- شفرة 1 -->
+    <path d="M0,0 C10,-25 35,-30 40,-15 C45,0 20,15 0,0" fill="url(#bladeGrad)" opacity="0.9"/>
+    <!-- شفرة 2 -->
+    <path d="M0,0 C25,10 30,35 15,40 C0,45 -15,20 0,0" fill="url(#bladeGrad)" opacity="0.9"/>
+    <!-- شفرة 3 -->
+    <path d="M0,0 C-10,25 -35,30 -40,15 C-45,0 -20,-15 0,0" fill="url(#bladeGrad)" opacity="0.9"/>
+    <!-- المركز -->
+    <circle cx="0" cy="0" r="12" fill="#0ea5e9" stroke="#fff" stroke-width="3"/>
+    <circle cx="0" cy="0" r="4" fill="#fff"/>
+  </g>
+</svg>

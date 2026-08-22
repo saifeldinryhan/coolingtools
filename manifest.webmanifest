@@ -1,0 +1,16 @@
+{
+  "name": "Cooling Tools Professional",
+  "short_name": "Cooling Tools",
+  "description": "أدوات تبريد وتكييف وكهرباء هندسية متقدمة",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b1f33",
+  "theme_color": "#0b1f33",
+  "icons": [
+    {
+      "src": "./logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
